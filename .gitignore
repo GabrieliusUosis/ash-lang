@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+grammar/Automata*.py
+grammar/*.tokens
+grammar/*.interp
+!grammar/__init__.py
