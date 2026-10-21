@@ -1,6 +1,6 @@
 lexer grammar AutomataLexer;
 
-// Keywords
+//Keywords
 DFA         : 'dfa';
 NFA         : 'nfa';
 REGEX       : 'regex';
@@ -10,7 +10,7 @@ START       : 'start';
 ACCEPT      : 'accept';
 TRANSITIONS : 'transitions';
 
-// Operators and Punctuation
+//Operators and Punctuation
 ARROW       : '->';
 COLON       : ':';
 COMMA       : ',';
@@ -24,10 +24,10 @@ STAR        : '*';
 PLUS        : '+';
 QUESTION    : '?';
 
-// Identifiers and Literals
+//Identifiers and Literals
 ID          : [a-zA-Z_][a-zA-Z0-9_]*;
 STRING      : '"' (~["\r\n\\] | '\\' .)* '"';
 
-// Skip Whitespace and Comments
+//Skip Whitespace and Comments
 WS          : [ \t\r\n]+ -> skip;
 COMMENT     : '//' ~[\r\n]* -> skip;
