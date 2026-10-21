@@ -3,7 +3,7 @@ options { tokenVocab=AutomataLexer; }
 
 program : statement* EOF ;
 
-// Support for all three machine types outlined in your lexer
+// Support for all three machine types outlined in the lexer
 statement : dfaDeclaration | nfaDeclaration | regexDeclaration ;
 
 dfaDeclaration : DFA ID LBRACE machineBody RBRACE ;
@@ -18,13 +18,12 @@ property : alphabetDecl
          | acceptDecl
          | transitionsBlock ;
 
-// Map directly to your ALPHABET, STATES, START, and ACCEPT tokens
+// Map directly to the ALPHABET, STATES, START, and ACCEPT tokens
 alphabetDecl : ALPHABET COLON stringList ;
 statesDecl : STATES COLON idList ;
 startDecl : START COLON ID ;
 acceptDecl : ACCEPT COLON idList ;
 
-// Group transitions cleanly utilizing your TRANSITIONS token
 transitionsBlock : TRANSITIONS COLON LBRACE transition* RBRACE ;
 transition : ID ARROW ID COLON STRING ;
 
@@ -32,13 +31,13 @@ transition : ID ARROW ID COLON STRING ;
 idList : ID (COMMA ID)* ;
 stringList : STRING (COMMA STRING)* ;
 
-// Map to your REGEX and ASSIGN ('=') tokens
+// Map to the REGEX and ASSIGN ('=') tokens
 regexDeclaration : REGEX ID ASSIGN regexExpr ;
 
-// Regex expression logic utilizing your PLUS, STAR, QUESTION, and PIPE tokens
-regexExpr : regexExpr (STAR | PLUS | QUESTION)  // Quantifiers
-          | regexExpr regexExpr                 // Concatenation
-          | regexExpr PIPE regexExpr            // Alternation
-          | LPAREN regexExpr RPAREN             // Grouping
-          | STRING                              // Literal matching
-          | ID ;                                // Reference to another regex/machine
+// Regex expression logic utilizing the PLUS, STAR, QUESTION, and PIPE tokens
+regexExpr : regexExpr (STAR | PLUS | QUESTION)  
+          | regexExpr regexExpr                 
+          | regexExpr PIPE regexExpr            
+          | LPAREN regexExpr RPAREN
+          | STRING                             
+          | ID ;                                
