@@ -3,7 +3,7 @@ gantt
     title Workplan Timeline
     dateFormat  YYYY-MM-DD
     axisFormat  %b %Y
-    todayMerker off
+    todayMarker off
 
     section Proposal
     Project Brief Submission                 :milestone, m1, 2026-10-23, 0d
