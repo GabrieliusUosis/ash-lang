@@ -33,3 +33,26 @@ def test_dfa_states_extraction():
     assert machine.machine_type == "DFA"
     assert machine.name == "M1"
     assert machine.states == ["q0", "q1", "q2"]
+
+def test_dfa_full_properties_extraction():
+    # Arrange
+    code = """
+    dfa M2 { 
+        states: q0, q1, q2 
+        alphabet: "a", "b"
+        start: q0
+        accept: q2
+    }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+
+    # Act
+    analyzer.visit(tree)
+
+    # Assert
+    machine = analyzer.machines["M2"]
+    assert machine.states == ["q0", "q1", "q2"]
+    assert machine.alphabet == ["a", "b"]
+    assert machine.start == "q0"
+    assert machine.accept == ["q2"]
