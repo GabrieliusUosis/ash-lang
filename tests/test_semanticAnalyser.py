@@ -57,11 +57,54 @@ def test_dfa_full_properties_extraction():
     assert machine.start == "q0"
     assert machine.accept == ["q2"]
 
+from src.SemanticAnalyser import SemanticError
+
+def test_dfa_validation_invalid_start_state():
+    code = """
+    dfa M_Error { 
+        states: q0, q1 
+        start: q99
+    }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+    
+    with pytest.raises(SemanticError, match="Start state 'q99' is not declared"):
+        analyzer.visit(tree)
+
+def test_dfa_validation_invalid_transition_symbol():
+    code = """
+    dfa M_Error2 { 
+        states: q0, q1 
+        alphabet: "a"
+        transitions: {
+            q0 -> q1: "b"
+        }
+    }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+    
+    with pytest.raises(SemanticError, match="Transition symbol 'b' is not in the declared alphabet"):
+        analyzer.visit(tree)
+
+def test_duplicate_machine_rejection():
+    code = """
+    dfa M1 { states: q0 }
+    dfa M1 { states: q1 }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+    
+    with pytest.raises(SemanticError, match="Duplicate machine declaration: 'M1'"):
+        analyzer.visit(tree)
 
 def test_dfa_transitions_extraction():
     # Arrange
     code = """
     dfa M3 { 
+        states: q0, q1, q2
+        alphabet: "a", "b"
         transitions: {
             q0 -> q1: "a"
             q1 -> q2: "b"

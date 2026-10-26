@@ -1,5 +1,9 @@
 from grammar.AutomataParserVisitor import AutomataParserVisitor
 
+class SemanticError(Exception):
+    """Raised when the parsed code is syntactically valid but logically flawed."""
+    pass
+
 class MachineData:
     def __init__(self, name, machine_type):
         self.name = name
@@ -67,3 +71,40 @@ class SemanticAnalyser(AutomataParserVisitor):
         
         self.current_machine.transitions.append(transition_data)
         return transition_data
+
+    def visitDfaDeclaration(self, ctx):
+        machine_name = ctx.ID().getText()
+        
+        if machine_name in self.machines:
+            raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
+            
+        self.current_machine = MachineData(machine_name, "DFA")
+        self.visit(ctx.machineBody())
+        
+        # Run validation before saving
+        self._validate_current_machine()
+        
+        self.machines[machine_name] = self.current_machine
+        self.current_machine = None
+        return self.machines[machine_name]
+
+    def _validate_current_machine(self):
+        machine = self.current_machine
+        
+        # Validate Start State
+        if machine.start and machine.start not in machine.states:
+            raise SemanticError(f"Start state '{machine.start}' is not declared in states list.")
+            
+        # Validate Accept States
+        for state in machine.accept:
+            if state not in machine.states:
+                raise SemanticError(f"Accept state '{state}' is not declared in states list.")
+                
+        # Validate Transitions
+        for t in machine.transitions:
+            if t["source"] not in machine.states:
+                raise SemanticError(f"Transition source '{t['source']}' is not declared in states list.")
+            if t["target"] not in machine.states:
+                raise SemanticError(f"Transition target '{t['target']}' is not declared in states list.")
+            if t["symbol"] not in machine.alphabet:
+                raise SemanticError(f"Transition symbol '{t['symbol']}' is not in the declared alphabet.")
