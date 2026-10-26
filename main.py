@@ -2,6 +2,7 @@ import sys
 from antlr4 import InputStream, FileStream, CommonTokenStream
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
+from src.SemanticAnalyser import SemanticAnalyser, SemanticError
 
 def parse_code(source_code: str = None, file_path: str = None):
     if file_path:
@@ -15,7 +16,17 @@ def parse_code(source_code: str = None, file_path: str = None):
     parser = AutomataParser(token_stream)
     tree = parser.program()
     
-    print(tree.toStringTree(recog=parser))
+    analyzer = SemanticAnalyser()
+    try:
+        analyzer.visit(tree)
+        print("Semantic analysis complete. Valid machines loaded:")
+        for name, machine in analyzer.machines.items():
+            # Handle both MachineData objects and Regex dictionaries
+            m_type = getattr(machine, "machine_type", machine.get("type") if isinstance(machine, dict) else "UNKNOWN")
+            print(f" - [{m_type}] {name}")
+    except SemanticError as e:
+        print(f"Compiler Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
