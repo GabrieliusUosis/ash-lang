@@ -20,27 +20,34 @@ class SemanticAnalyser(AutomataParserVisitor):
         self.current_machine = None
 
     def visitStatesDecl(self, ctx):
-        # Extract all state IDs from the idList context
         states = [node.getText() for node in ctx.idList().ID()]
-        self.current_machine.states.extend(states)
+        for state in states:
+            if state in self.current_machine.states:
+                raise SemanticError(f"Duplicate state declared: '{state}'")
+            self.current_machine.states.append(state)
         return states
 
     def visitAlphabetDecl(self, ctx):
-        # Extract all alphabet symbols from the stringList, stripping the double quotes
         alphabet = [node.getText().strip('"') for node in ctx.stringList().STRING()]
-        self.current_machine.alphabet.extend(alphabet)
+        for symbol in alphabet:
+            if symbol in self.current_machine.alphabet:
+                raise SemanticError(f"Duplicate alphabet symbol declared: '{symbol}'")
+            self.current_machine.alphabet.append(symbol)
         return alphabet
 
     def visitStartDecl(self, ctx):
-        # Extract the single start state ID
+        if getattr(self.current_machine, 'start', None) is not None:
+            raise SemanticError("Multiple start states declared.")
         start_state = ctx.ID().getText()
         self.current_machine.start = start_state
         return start_state
 
     def visitAcceptDecl(self, ctx):
-        # Extract all accept state IDs from the idList context
         accept_states = [node.getText() for node in ctx.idList().ID()]
-        self.current_machine.accept.extend(accept_states)
+        for state in accept_states:
+            if state in self.current_machine.accept:
+                raise SemanticError(f"Duplicate accept state declared: '{state}'")
+            self.current_machine.accept.append(state)
         return accept_states
 
     def visitTransition(self, ctx):
@@ -77,16 +84,20 @@ class SemanticAnalyser(AutomataParserVisitor):
     def _validate_current_machine(self):
         machine = self.current_machine
         
-        # Validate Start State
-        if machine.start and machine.start not in machine.states:
+        # Enforce Completeness
+        if not machine.states:
+            raise SemanticError("Machine must declare at least one state.")
+        if not machine.start:
+            raise SemanticError("Machine is missing a start state.")
+        if machine.start not in machine.states:
             raise SemanticError(f"Start state '{machine.start}' is not declared in states list.")
             
-        # Validate Accept States
         for state in machine.accept:
             if state not in machine.states:
                 raise SemanticError(f"Accept state '{state}' is not declared in states list.")
                 
-        # Validate Transitions
+        # Validate Transitions & Determinism
+        seen_transitions = set()
         for t in machine.transitions:
             if t["source"] not in machine.states:
                 raise SemanticError(f"Transition source '{t['source']}' is not declared in states list.")
@@ -94,6 +105,13 @@ class SemanticAnalyser(AutomataParserVisitor):
                 raise SemanticError(f"Transition target '{t['target']}' is not declared in states list.")
             if t["symbol"] not in machine.alphabet:
                 raise SemanticError(f"Transition symbol '{t['symbol']}' is not in the declared alphabet.")
+            
+            # DFA Determinism Check
+            if machine.machine_type == "DFA":
+                trans_key = (t["source"], t["symbol"])
+                if trans_key in seen_transitions:
+                    raise SemanticError(f"DFA determinism violation: State '{t['source']}' has multiple transitions for symbol '{t['symbol']}'.")
+                seen_transitions.add(trans_key)
 
     def visitNfaDeclaration(self, ctx):
         machine_name = ctx.ID().getText()

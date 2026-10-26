@@ -1,8 +1,13 @@
 import sys
 from antlr4 import InputStream, FileStream, CommonTokenStream
+from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.SemanticAnalyser import SemanticAnalyser, SemanticError
+
+class StrictErrorListener(ErrorListener):
+    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+        raise SyntaxError(f"Syntax error at line {line}:{column} - {msg}")
 
 def parse_code(source_code: str = None, file_path: str = None):
     if file_path:
@@ -11,17 +16,26 @@ def parse_code(source_code: str = None, file_path: str = None):
         stream = InputStream(source_code)
         
     lexer = AutomataLexer(stream)
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(StrictErrorListener())
+    
     token_stream = CommonTokenStream(lexer)
     
     parser = AutomataParser(token_stream)
-    tree = parser.program()
+    parser.removeErrorListeners()
+    parser.addErrorListener(StrictErrorListener())
     
+    try:
+        tree = parser.program()
+    except SyntaxError as e:
+        print(f"Compilation aborted: {e}")
+        sys.exit(1)
+        
     analyzer = SemanticAnalyser()
     try:
         analyzer.visit(tree)
         print("Semantic analysis complete. Valid machines loaded:")
         for name, machine in analyzer.machines.items():
-            # Handle both MachineData objects and Regex dictionaries
             m_type = getattr(machine, "machine_type", machine.get("type") if isinstance(machine, dict) else "UNKNOWN")
             print(f" - [{m_type}] {name}")
     except SemanticError as e:
@@ -42,6 +56,5 @@ if __name__ == "__main__":
                 q0 -> q1: "a"
             }
         }
-        regex R1 = (a|b)*
         """
         parse_code(source_code=sample_code)
