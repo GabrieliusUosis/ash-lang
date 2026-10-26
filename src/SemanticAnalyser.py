@@ -52,3 +52,18 @@ class SemanticAnalyser(AutomataParserVisitor):
         accept_states = [node.getText() for node in ctx.idList().ID()]
         self.current_machine.accept.extend(accept_states)
         return accept_states
+
+    def visitTransition(self, ctx):
+        # Extract source ID, target ID, and the transition symbol
+        source = ctx.ID(0).getText()
+        target = ctx.ID(1).getText()
+        symbol = ctx.STRING().getText().strip('"')
+        
+        transition_data = {
+            "source": source,
+            "symbol": symbol,
+            "target": target
+        }
+        
+        self.current_machine.transitions.append(transition_data)
+        return transition_data

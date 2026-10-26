@@ -56,3 +56,26 @@ def test_dfa_full_properties_extraction():
     assert machine.alphabet == ["a", "b"]
     assert machine.start == "q0"
     assert machine.accept == ["q2"]
+
+
+def test_dfa_transitions_extraction():
+    # Arrange
+    code = """
+    dfa M3 { 
+        transitions: {
+            q0 -> q1: "a"
+            q1 -> q2: "b"
+        }
+    }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+
+    # Act
+    analyzer.visit(tree)
+
+    # Assert
+    machine = analyzer.machines["M3"]
+    assert len(machine.transitions) == 2
+    assert machine.transitions[0] == {"source": "q0", "symbol": "a", "target": "q1"}
+    assert machine.transitions[1] == {"source": "q1", "symbol": "b", "target": "q2"}
