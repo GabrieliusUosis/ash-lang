@@ -107,6 +107,7 @@ class SemanticAnalyser(AutomataParserVisitor):
             if t["target"] not in machine.states:
                 raise SemanticError(f"Transition target '{t['target']}' is not declared in states list.")
             if t["symbol"] not in machine.alphabet:
+<<<<<<< HEAD
                 raise SemanticError(f"Transition symbol '{t['symbol']}' is not in the declared alphabet.")
 
     def visitNfaDeclaration(self, ctx):
@@ -141,3 +142,6 @@ class SemanticAnalyser(AutomataParserVisitor):
             "expression": regex_expr
         }
         return self.machines[regex_name]
+=======
+                raise SemanticError(f"Transition symbol '{t['symbol']}' is not in the declared alphabet.")
+>>>>>>> a03ecc5fe6f6b1c08d799b5941469953fec5aa88
