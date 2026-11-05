@@ -61,3 +61,37 @@ def test_regex_quantifiers_tokens():
         "ID", "QUESTION", "STAR"
     ]
     assert tokenize(sample) == expected
+
+def test_nfa_declaration_tokens():
+    sample = "nfa N_1 { states: s_0, s_1 start: s_0 }"
+    expected = [
+        "NFA", "ID", "LBRACE",
+        "STATES", "COLON", "ID", "COMMA", "ID",
+        "START", "COLON", "ID",
+        "RBRACE"
+    ]
+    assert tokenize(sample) == expected
+
+def test_comments_and_whitespace_skipped():
+    sample = """
+    // Full line comment
+    dfa M1 { // Inline comment
+        start: q0
+    }
+    """
+    expected = ["DFA", "ID", "LBRACE", "START", "COLON", "ID", "RBRACE"]
+    assert tokenize(sample) == expected
+
+def test_escaped_string_tokens():
+    sample = r'alphabet: "\"", "\\"'
+    expected = ["ALPHABET", "COLON", "STRING", "COMMA", "STRING"]
+    assert tokenize(sample) == expected
+
+def test_complex_regex_with_string_literals():
+    sample = 'regex HasOddOnes = ("0"* "1")+ | "0"?'
+    expected = [
+        "REGEX", "ID", "ASSIGN",
+        "LPAREN", "STRING", "STAR", "STRING", "RPAREN", "PLUS",
+        "PIPE", "STRING", "QUESTION"
+    ]
+    assert tokenize(sample) == expected
