@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from antlr4 import InputStream, FileStream, CommonTokenStream
@@ -7,24 +8,32 @@ from grammar.AutomataParser import AutomataParser
 from src.SemanticAnalyser import SemanticAnalyser, SemanticError
 from src.runtime.dfa import DFA
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 class StrictErrorListener(ErrorListener):
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
         raise SyntaxError(f"Syntax error at line {line}:{column} - {msg}")
+
+def ensure_file_exists(file_path: str) -> str:
+    if not os.path.isfile(file_path):
+        print(f"Error: File '{file_path}' not found.")
+        sys.exit(1)
+    return file_path
 
 def run_grun(file_path: str, flag: str = "-tree"):
     """Invokes ANTLR's TestRig (grun / antlr4-parse) on the given .ash file."""
     cmd = [
         "antlr4-parse",
-        "grammar/AutomataParser.g4",
-        "grammar/AutomataLexer.g4",
+        os.path.join(BASE_DIR, "grammar", "AutomataParser.g4"),
+        os.path.join(BASE_DIR, "grammar", "AutomataLexer.g4"),
         "program",
         flag,
-        file_path,
+        ensure_file_exists(file_path),
     ]
     subprocess.run(cmd, check=True)
 
 def parse_code(source_code: str = None, file_path: str = None) -> dict:
-    stream = FileStream(file_path, encoding='utf-8') if file_path else InputStream(source_code)
+    stream = FileStream(ensure_file_exists(file_path), encoding='utf-8') if file_path else InputStream(source_code)
         
     lexer = AutomataLexer(stream)
     lexer.removeErrorListeners()
@@ -72,7 +81,7 @@ def run_simulation(machine: DFA, words: list[str]):
         except ValueError as e:
             print(f'  Input "{word}": ERROR ({e})')
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         file_arg = sys.argv[1]
         if len(sys.argv) == 3 and sys.argv[2] in ("-tree", "-tokens", "-gui"):
@@ -105,3 +114,6 @@ if __name__ == "__main__":
         """
         machines = parse_code(source_code=sample_code)
         run_simulation(machines["M1"], ["a", "b"])
+
+if __name__ == "__main__":
+    main()
