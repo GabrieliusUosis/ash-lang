@@ -582,3 +582,70 @@ def test_dfa_escaped_and_special_character_alphabets():
     assert dfa.simulate('"\\ α') is True
     assert dfa.simulate('"') is False
     assert dfa.simulate('α') is False
+
+def test_dfa_to_ash_exact_output():
+    dfa = make_ends_with_zero_dfa()
+    expected = (
+        "dfa EndsWithZero {\n"
+        "    states: s0, s1\n"
+        '    alphabet: "0", "1"\n'
+        "    start: s0\n"
+        "    accept: s1\n"
+        "    transitions: {\n"
+        '        s0 -> s1: "0"\n'
+        '        s0 -> s0: "1"\n'
+        '        s1 -> s1: "0"\n'
+        '        s1 -> s0: "1"\n'
+        "    }\n"
+        "}"
+    )
+    assert dfa.to_ash() == expected
+
+def test_dfa_to_ash_round_trip_compilation():
+    original = make_divisible_by_three_dfa()
+    emitted_code = original.to_ash()
+    recompiled = compile_dfa(emitted_code, "DivisibleByThree")
+    for word in all_words("01", 6):
+        assert recompiled.simulate(word) is original.simulate(word)
+
+def test_dfa_to_ash_escaped_symbols_round_trip():
+    dfa = DFA(
+        name="EscapedDFA",
+        states=["q0", "q1"],
+        alphabet=['"', "\\", "\n"],
+        start="q0",
+        accept=["q1"],
+        transitions=[
+            {"source": "q0", "symbol": '"', "target": "q1"},
+            {"source": "q1", "symbol": "\\", "target": "q1"},
+            {"source": "q1", "symbol": "\n", "target": "q0"},
+        ],
+    )
+    recompiled = compile_dfa(dfa.to_ash(), "EscapedDFA")
+    assert recompiled.simulate('"\\') is True
+    assert recompiled.simulate('"\n') is False
+
+def test_dfa_to_ash_minimal_machine_omits_empty_sections():
+    dfa = DFA(
+        name="Minimal",
+        states=["q0"],
+        alphabet=[],
+        start="q0",
+        accept=[],
+        transitions=[],
+    )
+    assert dfa.to_ash() == "dfa Minimal {\n    states: q0\n    start: q0\n}"
+    recompiled = compile_dfa(dfa.to_ash(), "Minimal")
+    assert recompiled.simulate("") is False
+
+def test_cli_format_machine_code_for_dfa_nfa_and_regex():
+    from main import format_machine_code, parse_code
+    code = """
+    dfa D1 { states: s0, s1 alphabet: "0" start: s0 accept: s1 transitions: { s0 -> s1: "0" } }
+    nfa N1 { states: q0, q1 alphabet: "a" start: q0 accept: q1 transitions: { q0 -> q1: "a" } }
+    regex R1 = (a|b)*
+    """
+    machines = parse_code(source_code=code)
+    assert "dfa D1 {" in format_machine_code(machines["D1"])
+    assert "nfa N1 {" in format_machine_code(machines["N1"])
+    assert format_machine_code(machines["R1"]) == "regex R1 = (a|b)*"
