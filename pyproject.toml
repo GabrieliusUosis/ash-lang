@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ash-lang"
+version = "0.1.0"
+description = "A declarative Domain-Specific Language workbench for formal models of computation (DFA, NFA, Regex)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "antlr4-python3-runtime==4.13.2",
+]
+
+[project.scripts]
+ash = "main:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+packages = ["grammar", "src", "src.runtime"]
