@@ -1,3 +1,7 @@
+def _escape_symbol(symbol: str) -> str:
+    escapes = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
+    return "".join(escapes.get(ch, ch) for ch in symbol)
+
 class DFA:
     """Formal representation of a Deterministic Finite Automaton: (Q, Σ, δ, q0, F)."""
 
@@ -8,6 +12,7 @@ class DFA:
         self.alphabet = list(alphabet)
         self._alphabet_set = set(alphabet)
         self.start = start
+        self._accept_order = list(accept)
         self.accept = set(accept)
         self.transitions = list(transitions)
 
@@ -61,3 +66,20 @@ class DFA:
             current_state = next_state
 
         return current_state in self.accept, path
+
+    def to_ash(self) -> str:
+        lines = [f"dfa {self.name} {{"]
+        lines.append(f"    states: {', '.join(self.states)}")
+        if self.alphabet:
+            formatted_alpha = ", ".join(f'"{_escape_symbol(s)}"' for s in self.alphabet)
+            lines.append(f"    alphabet: {formatted_alpha}")
+        lines.append(f"    start: {self.start}")
+        if self._accept_order:
+            lines.append(f"    accept: {', '.join(self._accept_order)}")
+        if self.transitions:
+            lines.append("    transitions: {")
+            for t in self.transitions:
+                lines.append(f'        {t["source"]} -> {t["target"]}: "{_escape_symbol(t["symbol"])}"')
+            lines.append("    }")
+        lines.append("}")
+        return "\n".join(lines)
