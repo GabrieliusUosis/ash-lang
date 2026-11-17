@@ -6,16 +6,19 @@ This document covers how to run `.ash` programs from the command line, inspect t
 
 ## 1. Command-Line Interface (CLI) Usage
 
-All commands below should be run from inside the `ash-lang/` directory:
+Install the `ash` CLI command in editable mode (only needed once):
 
 ```powershell
 cd ash-lang
+pip install -e .
 ```
+
+*(Note: Every `ash ...` command below can also be run via `python main.py ...`)*
 
 ### 1.1 Validate an `.ash` File
 To lex, parse, and run semantic analysis on an `.ash` file without simulating a specific machine:
 ```powershell
-python main.py demo.ash
+ash demo.ash
 ```
 **Output:**
 ```text
@@ -30,7 +33,7 @@ Semantic analysis complete. Valid machines loaded:
 ### 1.2 Execute / Simulate a DFA on Input Strings
 Pass the `.ash` file path, the **DFA name**, and one or more **input strings** to simulate:
 ```powershell
-python main.py demo.ash EndsWithZero "1010" "1011" "0"
+ash demo.ash EndsWithZero "1010" "1011" "0"
 ```
 **Output:**
 ```text
@@ -42,13 +45,13 @@ Simulating DFA 'EndsWithZero':
 
 To test the empty string ($\epsilon$), pass `""`:
 ```powershell
-python main.py demo.ash EvenZeros "" "0" "00"
+ash demo.ash EvenZeros "" "0" "00"
 ```
 
 ### 1.3 Run the Built-in Default Sample
-Running `main.py` with no arguments executes a built-in minimal sample DFA (`M1`):
+Running `ash` with no arguments executes a built-in minimal sample DFA (`M1`):
 ```powershell
-python main.py
+ash
 ```
 
 ### 1.4 Run the Unit Test Suite
@@ -60,24 +63,24 @@ pytest -v
 
 ## 2. Viewing Parse Trees & Tokens with ANTLR (`grun`)
 
-`main.py` includes built-in wrappers around ANTLR's TestRig (`grun` / `antlr4-parse`) so you can inspect how any `.ash` file is tokenized and parsed.
+`ash` includes built-in wrappers around ANTLR's TestRig (`grun` / `antlr4-parse`) so you can inspect how any `.ash` file is tokenized and parsed.
 
 ### 2.1 Visual Parse Tree GUI (`-gui`)
 Opens an interactive graphical window displaying the complete parse tree diagram of your `.ash` file:
 ```powershell
-python main.py demo.ash -gui
+ash demo.ash -gui
 ```
 
 ### 2.2 LISP-Style Text Parse Tree (`-tree`)
 Prints the hierarchical parse tree directly in the terminal:
 ```powershell
-python main.py demo.ash -tree
+ash demo.ash -tree
 ```
 
 ### 2.3 Lexer Token Stream (`-tokens`)
 Prints every token emitted by `AutomataLexer`, including token index, character offsets, literal text, token type, and `line:column` coordinates:
 ```powershell
-python main.py demo.ash -tokens
+ash demo.ash -tokens
 ```
 
 ### 2.4 Direct `antlr4-parse` & Regenerating Grammar Files
