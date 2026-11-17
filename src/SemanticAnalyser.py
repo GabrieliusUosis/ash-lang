@@ -1,5 +1,19 @@
 from grammar.AutomataParserVisitor import AutomataParserVisitor
 
+def _unescape_string(token_text: str) -> str:
+    inner = token_text[1:-1]
+    escapes = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"'}
+    out = []
+    i = 0
+    while i < len(inner):
+        if inner[i] == "\\" and i + 1 < len(inner):
+            out.append(escapes.get(inner[i + 1], inner[i + 1]))
+            i += 2
+        else:
+            out.append(inner[i])
+            i += 1
+    return "".join(out)
+
 class SemanticError(Exception):
     """Raised when the parsed code is syntactically valid but logically flawed."""
     pass
@@ -28,7 +42,7 @@ class SemanticAnalyser(AutomataParserVisitor):
         return states
 
     def visitAlphabetDecl(self, ctx):
-        alphabet = [node.getText().strip('"') for node in ctx.stringList().STRING()]
+        alphabet = [_unescape_string(node.getText()) for node in ctx.stringList().STRING()]
         for symbol in alphabet:
             if symbol in self.current_machine.alphabet:
                 raise SemanticError(f"Duplicate alphabet symbol declared: '{symbol}'")
@@ -54,7 +68,7 @@ class SemanticAnalyser(AutomataParserVisitor):
         # Extract source ID, target ID, and the transition symbol
         source = ctx.ID(0).getText()
         target = ctx.ID(1).getText()
-        symbol = ctx.STRING().getText().strip('"')
+        symbol = _unescape_string(ctx.STRING().getText())
         
         transition_data = {
             "source": source,
@@ -72,14 +86,13 @@ class SemanticAnalyser(AutomataParserVisitor):
             raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
             
         self.current_machine = MachineData(machine_name, "DFA")
-        self.visit(ctx.machineBody())
-        
-        # Run validation before saving
-        self._validate_current_machine()
-        
-        self.machines[machine_name] = self.current_machine
-        self.current_machine = None
-        return self.machines[machine_name]
+        try:
+            self.visit(ctx.machineBody())
+            self._validate_current_machine()
+            self.machines[machine_name] = self.current_machine
+            return self.machines[machine_name]
+        finally:
+            self.current_machine = None
 
     def _validate_current_machine(self):
         machine = self.current_machine
@@ -120,14 +133,13 @@ class SemanticAnalyser(AutomataParserVisitor):
             raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
             
         self.current_machine = MachineData(machine_name, "NFA")
-        self.visit(ctx.machineBody())
-        
-        # Reuse the identical validation logic for NFAs
-        self._validate_current_machine()
-        
-        self.machines[machine_name] = self.current_machine
-        self.current_machine = None
-        return self.machines[machine_name]
+        try:
+            self.visit(ctx.machineBody())
+            self._validate_current_machine()
+            self.machines[machine_name] = self.current_machine
+            return self.machines[machine_name]
+        finally:
+            self.current_machine = None
 
     def visitRegexDeclaration(self, ctx):
         regex_name = ctx.ID().getText()
