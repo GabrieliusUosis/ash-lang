@@ -6,6 +6,7 @@ class DFA:
         self.machine_type = "DFA"
         self.states = list(states)
         self.alphabet = list(alphabet)
+        self._alphabet_set = set(alphabet)
         self.start = start
         self.accept = set(accept)
         self.transitions = list(transitions)
@@ -30,13 +31,16 @@ class DFA:
     def step(self, state: str, symbol: str) -> str | None:
         return self._transition_table.get((state, symbol))
 
+    def _validate_word(self, word: str):
+        for symbol in word:
+            if symbol not in self._alphabet_set:
+                raise ValueError(f"Symbol '{symbol}' is not in the alphabet of DFA '{self.name}'.")
+
     def simulate(self, word: str) -> bool:
+        self._validate_word(word)
         current_state = self.start
 
         for symbol in word:
-            if symbol not in self.alphabet:
-                raise ValueError(f"Symbol '{symbol}' is not in the alphabet of DFA '{self.name}'.")
-
             current_state = self.step(current_state, symbol)
             if current_state is None:
                 return False
@@ -44,13 +48,11 @@ class DFA:
         return current_state in self.accept
 
     def trace(self, word: str) -> tuple[bool, list[tuple[str, str, str]]]:
+        self._validate_word(word)
         current_state = self.start
         path = []
 
         for symbol in word:
-            if symbol not in self.alphabet:
-                raise ValueError(f"Symbol '{symbol}' is not in the alphabet of DFA '{self.name}'.")
-
             next_state = self.step(current_state, symbol)
             if next_state is None:
                 return False, path
