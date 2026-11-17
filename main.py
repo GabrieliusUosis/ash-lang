@@ -6,7 +6,7 @@ from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.SemanticAnalyser import SemanticAnalyser, SemanticError
-from src.runtime.dfa import DFA
+from src.runtime.dfa import DFA, _escape_symbol
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -31,6 +31,34 @@ def run_grun(file_path: str, flag: str = "-tree"):
         ensure_file_exists(file_path),
     ]
     subprocess.run(cmd, check=True)
+
+def print_file_code(file_path: str):
+    valid_path = ensure_file_exists(file_path)
+    with open(valid_path, encoding="utf-8") as f:
+        for idx, line in enumerate(f, start=1):
+            print(f"{idx:3d} | {line.rstrip()}")
+
+def format_machine_code(machine) -> str:
+    if hasattr(machine, "to_ash"):
+        return machine.to_ash()
+    if isinstance(machine, dict) and machine.get("type") == "REGEX":
+        return f"regex {machine['name']} = {machine['expression']}"
+    keyword = getattr(machine, "machine_type", "nfa").lower()
+    lines = [f"{keyword} {machine.name} {{"]
+    lines.append(f"    states: {', '.join(machine.states)}")
+    if machine.alphabet:
+        formatted_alpha = ", ".join(f'"{_escape_symbol(s)}"' for s in machine.alphabet)
+        lines.append(f"    alphabet: {formatted_alpha}")
+    lines.append(f"    start: {machine.start}")
+    if machine.accept:
+        lines.append(f"    accept: {', '.join(machine.accept)}")
+    if machine.transitions:
+        lines.append("    transitions: {")
+        for t in machine.transitions:
+            lines.append(f'        {t["source"]} -> {t["target"]}: "{_escape_symbol(t["symbol"])}"')
+        lines.append("    }")
+    lines.append("}")
+    return "\n".join(lines)
 
 def parse_code(source_code: str = None, file_path: str = None) -> dict:
     stream = FileStream(ensure_file_exists(file_path), encoding='utf-8') if file_path else InputStream(source_code)
@@ -87,8 +115,19 @@ def main():
         if len(sys.argv) == 3 and sys.argv[2] in ("-tree", "-tokens", "-gui"):
             run_grun(file_arg, sys.argv[2])
             sys.exit(0)
+        if len(sys.argv) == 3 and sys.argv[2] == "-code":
+            print_file_code(file_arg)
+            sys.exit(0)
 
         machines = parse_code(file_path=file_arg)
+        if len(sys.argv) == 4 and sys.argv[3] == "-code":
+            target_name = sys.argv[2]
+            if target_name not in machines:
+                print(f"Error: Machine '{target_name}' not found.")
+                sys.exit(1)
+            print(f"\n{format_machine_code(machines[target_name])}")
+            sys.exit(0)
+
         if len(sys.argv) >= 4:
             target_name = sys.argv[2]
             test_words = sys.argv[3:]
