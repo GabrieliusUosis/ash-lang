@@ -48,13 +48,23 @@ To test the empty string ($\epsilon$), pass `""`:
 ash demo.ash EvenZeros "" "0" "00"
 ```
 
-### 1.3 Run the Built-in Default Sample
+### 1.3 View Source Code (`-code`)
+To view a specific machine's `.ash` definition from the terminal:
+```powershell
+ash demo.ash EndsWithZero -code
+```
+To view the entire `.ash` file with line numbers:
+```powershell
+ash demo.ash -code
+```
+
+### 1.4 Run the Built-in Default Sample
 Running `ash` with no arguments executes a built-in minimal sample DFA (`M1`):
 ```powershell
 ash
 ```
 
-### 1.4 Run the Unit Test Suite
+### 1.5 Run the Unit Test Suite
 ```powershell
 pytest -v
 ```
