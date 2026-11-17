@@ -310,3 +310,229 @@ def test_flexible_property_ordering():
     assert machine.start == "q0"
     assert machine.accept == ["q1"]
     assert len(machine.transitions) == 1
+
+def test_multi_machine_program_loading():
+    code = """
+    dfa D1 {
+        states: s0, s1
+        alphabet: "0"
+        start: s0
+        accept: s1
+        transitions: { s0 -> s1: "0" }
+    }
+    nfa N1 {
+        states: q0, q1
+        alphabet: "a"
+        start: q0
+        accept: q1
+        transitions: {
+            q0 -> q0: "a"
+            q0 -> q1: "a"
+        }
+    }
+    regex R1 = "0"* "1"+
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+    analyzer.visit(tree)
+
+    assert set(analyzer.machines.keys()) == {"D1", "N1", "R1"}
+    assert analyzer.machines["D1"].machine_type == "DFA"
+    assert analyzer.machines["N1"].machine_type == "NFA"
+    assert analyzer.machines["R1"]["type"] == "REGEX"
+
+def test_cross_type_duplicate_name_rejection():
+    code_dfa_nfa = """
+    dfa SharedName { states: q0 start: q0 }
+    nfa SharedName { states: q1 start: q1 }
+    """
+    with pytest.raises(SemanticError, match="Duplicate machine declaration: 'SharedName'"):
+        SemanticAnalyser().visit(get_parse_tree(code_dfa_nfa))
+
+    code_dfa_regex = """
+    dfa SharedName { states: q0 start: q0 }
+    regex SharedName = a*
+    """
+    with pytest.raises(SemanticError, match="Duplicate declaration: 'SharedName'"):
+        SemanticAnalyser().visit(get_parse_tree(code_dfa_regex))
+
+    code_regex_dfa = """
+    regex SharedName = a*
+    dfa SharedName { states: q0 start: q0 }
+    """
+    with pytest.raises(SemanticError, match="Duplicate machine declaration: 'SharedName'"):
+        SemanticAnalyser().visit(get_parse_tree(code_regex_dfa))
+
+def test_dfa_converging_and_multi_symbol_transitions_allowed():
+    code = """
+    dfa Converging {
+        states: q0, q1, q2
+        alphabet: "a", "b"
+        start: q0
+        accept: q2
+        transitions: {
+            q0 -> q2: "a"
+            q0 -> q2: "b"
+            q1 -> q2: "a"
+        }
+    }
+    """
+    tree = get_parse_tree(code)
+    analyzer = SemanticAnalyser()
+    analyzer.visit(tree)
+    assert len(analyzer.machines["Converging"].transitions) == 3
+
+def test_dfa_self_loop_and_branch_same_symbol_violation():
+    code = """
+    dfa BadSelfLoop {
+        states: q0, q1
+        alphabet: "a"
+        start: q0
+        transitions: {
+            q0 -> q0: "a"
+            q0 -> q1: "a"
+        }
+    }
+    """
+    with pytest.raises(SemanticError, match="DFA determinism violation"):
+        SemanticAnalyser().visit(get_parse_tree(code))
+
+def test_nfa_enforces_state_and_alphabet_integrity():
+    bad_nfa_state = """
+    nfa BadNFA1 {
+        states: q0
+        alphabet: "a"
+        start: q0
+        transitions: { q0 -> q_missing: "a" }
+    }
+    """
+    with pytest.raises(SemanticError, match="Transition target 'q_missing' is not declared"):
+        SemanticAnalyser().visit(get_parse_tree(bad_nfa_state))
+
+    bad_nfa_symbol = """
+    nfa BadNFA2 {
+        states: q0, q1
+        alphabet: "a"
+        start: q0
+        transitions: { q0 -> q1: "z" }
+    }
+    """
+    with pytest.raises(SemanticError, match="Transition symbol 'z' is not in the declared alphabet"):
+        SemanticAnalyser().visit(get_parse_tree(bad_nfa_symbol))
+
+@pytest.mark.parametrize("malformed_code", [
+    "dfa MissingBrace { states: q0 start: q0",
+    "dfa BadArrow { states: q0, q1 alphabet: \"a\" start: q0 transitions: { q0 => q1: \"a\" } }",
+    "dfa MissingColon { states q0 start: q0 }",
+    "regex UnclosedParen = (a | b",
+    "dfa TrailingCommaStates { states: q0, q1, start: q0 }",
+    "dfa TrailingCommaAlphabet { states: q0 alphabet: \"a\", start: q0 }",
+    "dfa EmptyStatesList { states: start: q0 }",
+    "dfa EmptyAcceptList { states: q0 start: q0 accept: }",
+    "dfa KeywordAsState { states: start, q1 start: q1 }",
+    "dfa KeywordAsName states { states: q0 start: q0 }",
+    "dfa states { states: q0 start: q0 }",
+])
+def test_strict_syntax_error_listener_rejects_malformed_code(malformed_code):
+    with pytest.raises(SyntaxError):
+        get_parse_tree(malformed_code)
+
+def test_empty_and_comment_only_program_loads_zero_machines():
+    for code in ["", "   \n\t  ", "// empty program\n// just comments"]:
+        analyzer = SemanticAnalyser()
+        analyzer.visit(get_parse_tree(code))
+        assert analyzer.machines == {}
+
+def test_minimal_dfa_without_accept_or_transitions():
+    code = """
+    dfa Minimal {
+        states: q0
+        start: q0
+    }
+    """
+    analyzer = SemanticAnalyser()
+    analyzer.visit(get_parse_tree(code))
+    machine = analyzer.machines["Minimal"]
+    assert machine.states == ["q0"]
+    assert machine.alphabet == []
+    assert machine.accept == []
+    assert machine.transitions == []
+
+def test_empty_transitions_block_is_valid():
+    code = """
+    dfa NoEdges {
+        states: q0, q1
+        alphabet: "0", "1"
+        start: q0
+        accept: q1
+        transitions: { }
+    }
+    """
+    analyzer = SemanticAnalyser()
+    analyzer.visit(get_parse_tree(code))
+    assert analyzer.machines["NoEdges"].transitions == []
+
+def test_dfa_duplicate_identical_transition_rejected():
+    code = """
+    dfa DupTransition {
+        states: q0, q1
+        alphabet: "a"
+        start: q0
+        transitions: {
+            q0 -> q1: "a"
+            q0 -> q1: "a"
+        }
+    }
+    """
+    with pytest.raises(SemanticError, match="DFA determinism violation"):
+        SemanticAnalyser().visit(get_parse_tree(code))
+
+def test_escaped_alphabet_and_transition_symbols_unescaped_properly():
+    code = r"""
+    dfa Escapes {
+        states: q0, q1, q2
+        alphabet: "\"", "\\", "\n"
+        start: q0
+        accept: q2
+        transitions: {
+            q0 -> q1: "\""
+            q1 -> q2: "\\"
+            q2 -> q2: "\n"
+        }
+    }
+    """
+    analyzer = SemanticAnalyser()
+    analyzer.visit(get_parse_tree(code))
+    machine = analyzer.machines["Escapes"]
+    assert machine.alphabet == ['"', '\\', '\n']
+    assert machine.transitions[0]["symbol"] == '"'
+    assert machine.transitions[1]["symbol"] == '\\'
+    assert machine.transitions[2]["symbol"] == '\n'
+
+def test_regex_operator_precedence_in_parse_tree():
+    tree = get_parse_tree("regex R = a | b c*")
+    parser = AutomataParser(CommonTokenStream(AutomataLexer(InputStream("regex R = a | b c*"))))
+    lisp_tree = tree.toStringTree(recog=parser)
+    assert "(regexExpr (regexExpr a) | (regexExpr (regexExpr b) (regexExpr (regexExpr c) *)))" in lisp_tree
+
+def test_semantic_analyser_cleans_up_current_machine_on_error():
+    bad_code = """
+    dfa Broken {
+        states: q0
+        start: missing
+    }
+    """
+    analyzer = SemanticAnalyser()
+    with pytest.raises(SemanticError):
+        analyzer.visit(get_parse_tree(bad_code))
+    assert analyzer.current_machine is None
+
+    good_code = """
+    dfa Healthy {
+        states: q0
+        start: q0
+    }
+    """
+    analyzer.visit(get_parse_tree(good_code))
+    assert "Healthy" in analyzer.machines
+    assert "Broken" not in analyzer.machines
