@@ -139,20 +139,6 @@ def main():
                 print(f"Error: Machine '{target_name}' is not a DFA.")
                 sys.exit(1)
             run_simulation(target_machine, test_words)
-    else:
-        sample_code = """
-        dfa M1 { 
-            states: q0, q1
-            alphabet: "a", "b"
-            start: q0
-            accept: q1
-            transitions: {
-                q0 -> q1: "a"
-            }
-        }
-        """
-        machines = parse_code(source_code=sample_code)
-        run_simulation(machines["M1"], ["a", "b"])
 
 if __name__ == "__main__":
     main()
