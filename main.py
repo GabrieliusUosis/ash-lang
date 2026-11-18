@@ -87,7 +87,7 @@ def parse_code(source_code: str = None, file_path: str = None) -> dict:
         sys.exit(1)
 
     runtime_machines = {}
-    print("Semantic analysis complete. Valid machines loaded:")
+    print("Machines loaded:")
     for name, machine in analyzer.machines.items():
         m_type = getattr(machine, "machine_type", machine.get("type") if isinstance(machine, dict) else "UNKNOWN")
         if m_type == "DFA":
@@ -108,6 +108,10 @@ def run_simulation(machine: DFA, words: list[str]):
             print(f'  Input "{word}": {status} | Trace: {steps}')
         except ValueError as e:
             print(f'  Input "{word}": ERROR ({e})')
+
+#def run_simulation(machine: NFA, words: list[str]):
+    #print(f"\nSimulating NFA '{machine.name}':")
+    #pass
 
 def main():
     if len(sys.argv) > 1:
