@@ -4,7 +4,7 @@ from antlr4 import InputStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
-from src.SemanticAnalyser import SemanticAnalyser
+from src.semantic_analyser import SemanticAnalyser
 from src.runtime.dfa import DFA
 
 class _StrictErrorListener(ErrorListener):

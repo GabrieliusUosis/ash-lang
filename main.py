@@ -5,7 +5,7 @@ from antlr4 import InputStream, FileStream, CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
-from src.SemanticAnalyser import SemanticAnalyser, SemanticError
+from src.semantic_analyser import SemanticAnalyser, SemanticError
 from src.formatter import format_machine
 from src.runtime.dfa import DFA
 

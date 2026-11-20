@@ -2,7 +2,7 @@ import pytest
 from antlr4 import InputStream, CommonTokenStream
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
-from src.SemanticAnalyser import SemanticAnalyser, SemanticError
+from src.semantic_analyser import SemanticAnalyser, SemanticError
 from src.models import Transition
 from antlr4.error.ErrorListener import ErrorListener
 
