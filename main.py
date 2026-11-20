@@ -41,9 +41,9 @@ def print_file_code(file_path: str):
 def format_machine_code(machine) -> str:
     if hasattr(machine, "to_ash"):
         return machine.to_ash()
-    if isinstance(machine, dict) and machine.get("type") == "REGEX":
-        return f"regex {machine['name']} = {machine['expression']}"
-    keyword = getattr(machine, "machine_type", "nfa").lower()
+    if machine.machine_type == "REGEX":
+        return f"regex {machine.name} = {machine.expression}"
+    keyword = machine.machine_type.lower()
     lines = [f"{keyword} {machine.name} {{"]
     lines.append(f"    states: {', '.join(machine.states)}")
     if machine.alphabet:
@@ -55,7 +55,7 @@ def format_machine_code(machine) -> str:
     if machine.transitions:
         lines.append("    transitions: {")
         for t in machine.transitions:
-            lines.append(f'        {t["source"]} -> {t["target"]}: "{_escape_symbol(t["symbol"])}"')
+            lines.append(f'        {t.source} -> {t.target}: "{_escape_symbol(t.symbol)}"')
         lines.append("    }")
     lines.append("}")
     return "\n".join(lines)
@@ -89,9 +89,9 @@ def parse_code(source_code: str = None, file_path: str = None) -> dict:
     runtime_machines = {}
     print("Machines loaded:")
     for name, machine in analyzer.machines.items():
-        m_type = getattr(machine, "machine_type", machine.get("type") if isinstance(machine, dict) else "UNKNOWN")
+        m_type = machine.machine_type
         if m_type == "DFA":
-            runtime_machines[name] = DFA.from_machine_data(machine)
+            runtime_machines[name] = DFA.from_spec(machine)
         else:
             runtime_machines[name] = machine
         print(f" - [{m_type}] {name}")

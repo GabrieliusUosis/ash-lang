@@ -3,6 +3,7 @@ from antlr4 import InputStream, CommonTokenStream
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.SemanticAnalyser import SemanticAnalyser, SemanticError
+from src.models import Transition
 from antlr4.error.ErrorListener import ErrorListener
 
 class StrictErrorListener(ErrorListener):
@@ -120,8 +121,8 @@ def test_dfa_transitions_extraction():
 
     machine = analyzer.machines["M3"]
     assert len(machine.transitions) == 2
-    assert machine.transitions[0] == {"source": "q0", "symbol": "a", "target": "q1"}
-    assert machine.transitions[1] == {"source": "q1", "symbol": "b", "target": "q2"}
+    assert machine.transitions[0] == Transition(source="q0", symbol="a", target="q1")
+    assert machine.transitions[1] == Transition(source="q1", symbol="b", target="q2")
 
 def test_nfa_extraction_and_validation():
     code = """
@@ -151,8 +152,8 @@ def test_regex_extraction():
     analyzer.visit(tree)
 
     regex_data = analyzer.machines["R1"]
-    assert regex_data["type"] == "REGEX"
-    assert regex_data["expression"] == "(a|b)*"
+    assert regex_data.machine_type == "REGEX"
+    assert regex_data.expression == "(a|b)*"
 
 def test_dfa_duplicate_state_rejection():
     code = """
@@ -339,7 +340,7 @@ def test_multi_machine_program_loading():
     assert set(analyzer.machines.keys()) == {"D1", "N1", "R1"}
     assert analyzer.machines["D1"].machine_type == "DFA"
     assert analyzer.machines["N1"].machine_type == "NFA"
-    assert analyzer.machines["R1"]["type"] == "REGEX"
+    assert analyzer.machines["R1"].machine_type == "REGEX"
 
 def test_cross_type_duplicate_name_rejection():
     code_dfa_nfa = """
@@ -505,9 +506,9 @@ def test_escaped_alphabet_and_transition_symbols_unescaped_properly():
     analyzer.visit(get_parse_tree(code))
     machine = analyzer.machines["Escapes"]
     assert machine.alphabet == ['"', '\\', '\n']
-    assert machine.transitions[0]["symbol"] == '"'
-    assert machine.transitions[1]["symbol"] == '\\'
-    assert machine.transitions[2]["symbol"] == '\n'
+    assert machine.transitions[0].symbol == '"'
+    assert machine.transitions[1].symbol == '\\'
+    assert machine.transitions[2].symbol == '\n'
 
 def test_regex_operator_precedence_in_parse_tree():
     tree = get_parse_tree("regex R = a | b c*")

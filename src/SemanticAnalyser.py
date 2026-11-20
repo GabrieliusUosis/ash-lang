@@ -1,4 +1,5 @@
 from grammar.AutomataParserVisitor import AutomataParserVisitor
+from src.models import MachineSpec, RegexSpec, Transition
 
 def _unescape_string(token_text: str) -> str:
     inner = token_text[1:-1]
@@ -17,16 +18,6 @@ def _unescape_string(token_text: str) -> str:
 class SemanticError(Exception):
     """Raised when the parsed code is syntactically valid but logically flawed."""
     pass
-
-class MachineData:
-    def __init__(self, name, machine_type):
-        self.name = name
-        self.machine_type = machine_type
-        self.states = []
-        self.alphabet = []
-        self.start = None
-        self.accept = []
-        self.transitions = []
 
 class SemanticAnalyser(AutomataParserVisitor):
     def __init__(self):
@@ -65,27 +56,21 @@ class SemanticAnalyser(AutomataParserVisitor):
         return accept_states
 
     def visitTransition(self, ctx):
-        # Extract source ID, target ID, and the transition symbol
         source = ctx.ID(0).getText()
         target = ctx.ID(1).getText()
         symbol = _unescape_string(ctx.STRING().getText())
-        
-        transition_data = {
-            "source": source,
-            "symbol": symbol,
-            "target": target
-        }
-        
+
+        transition_data = Transition(source=source, symbol=symbol, target=target)
         self.current_machine.transitions.append(transition_data)
         return transition_data
 
     def visitDfaDeclaration(self, ctx):
         machine_name = ctx.ID().getText()
-        
+
         if machine_name in self.machines:
             raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
-            
-        self.current_machine = MachineData(machine_name, "DFA")
+
+        self.current_machine = MachineSpec(machine_name, "DFA")
         try:
             self.visit(ctx.machineBody())
             self._validate_current_machine()
@@ -96,43 +81,40 @@ class SemanticAnalyser(AutomataParserVisitor):
 
     def _validate_current_machine(self):
         machine = self.current_machine
-        
-        # Enforce Completeness
+
         if not machine.states:
             raise SemanticError("Machine must declare at least one state.")
         if not machine.start:
             raise SemanticError("Machine is missing a start state.")
         if machine.start not in machine.states:
             raise SemanticError(f"Start state '{machine.start}' is not declared in states list.")
-            
+
         for state in machine.accept:
             if state not in machine.states:
                 raise SemanticError(f"Accept state '{state}' is not declared in states list.")
-                
-        # Validate Transitions & Determinism
+
         seen_transitions = set()
         for t in machine.transitions:
-            if t["source"] not in machine.states:
-                raise SemanticError(f"Transition source '{t['source']}' is not declared in states list.")
-            if t["target"] not in machine.states:
-                raise SemanticError(f"Transition target '{t['target']}' is not declared in states list.")
-            if t["symbol"] not in machine.alphabet:
-                raise SemanticError(f"Transition symbol '{t['symbol']}' is not in the declared alphabet.")
-            
-            # DFA Determinism Check
+            if t.source not in machine.states:
+                raise SemanticError(f"Transition source '{t.source}' is not declared in states list.")
+            if t.target not in machine.states:
+                raise SemanticError(f"Transition target '{t.target}' is not declared in states list.")
+            if t.symbol not in machine.alphabet:
+                raise SemanticError(f"Transition symbol '{t.symbol}' is not in the declared alphabet.")
+
             if machine.machine_type == "DFA":
-                trans_key = (t["source"], t["symbol"])
+                trans_key = (t.source, t.symbol)
                 if trans_key in seen_transitions:
-                    raise SemanticError(f"DFA determinism violation: State '{t['source']}' has multiple transitions for symbol '{t['symbol']}'.")
+                    raise SemanticError(f"DFA determinism violation: State '{t.source}' has multiple transitions for symbol '{t.symbol}'.")
                 seen_transitions.add(trans_key)
 
     def visitNfaDeclaration(self, ctx):
         machine_name = ctx.ID().getText()
-        
+
         if machine_name in self.machines:
             raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
-            
-        self.current_machine = MachineData(machine_name, "NFA")
+
+        self.current_machine = MachineSpec(machine_name, "NFA")
         try:
             self.visit(ctx.machineBody())
             self._validate_current_machine()
@@ -143,17 +125,10 @@ class SemanticAnalyser(AutomataParserVisitor):
 
     def visitRegexDeclaration(self, ctx):
         regex_name = ctx.ID().getText()
-        
+
         if regex_name in self.machines:
             raise SemanticError(f"Duplicate declaration: '{regex_name}' already exists.")
-            
-        # Extract the raw expression text from the regexExpr rule
+
         regex_expr = ctx.regexExpr().getText()
-        
-        # Store regex properties in the machines dictionary
-        self.machines[regex_name] = {
-            "type": "REGEX", 
-            "name": regex_name, 
-            "expression": regex_expr
-        }
+        self.machines[regex_name] = RegexSpec(name=regex_name, expression=regex_expr)
         return self.machines[regex_name]
