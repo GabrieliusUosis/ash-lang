@@ -3,7 +3,8 @@ from antlr4 import InputStream, CommonTokenStream
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.semantic_analyser import SemanticAnalyser, SemanticError
-from src.models import Transition
+from src.formatter import format_machine
+from src.models import EPSILON, Transition
 from antlr4.error.ErrorListener import ErrorListener
 
 class StrictErrorListener(ErrorListener):
@@ -537,3 +538,55 @@ def test_semantic_analyser_cleans_up_current_machine_on_error():
     analyzer.visit(get_parse_tree(good_code))
     assert "Healthy" in analyzer.machines
     assert "Broken" not in analyzer.machines
+
+def test_nfa_accepts_epsilon_transition_and_formats_as_backslash_e():
+    code = r"""
+    nfa EpsNFA {
+        states: q0, q1, q2
+        alphabet: "a"
+        start: q0
+        accept: q2
+        transitions: {
+            q0 -> q1: \e
+            q1 -> q2: "a"
+        }
+    }
+    """
+    analyzer = SemanticAnalyser()
+    analyzer.visit(get_parse_tree(code))
+    machine = analyzer.machines["EpsNFA"]
+    assert machine.transitions[0] == Transition("q0", EPSILON, "q1")
+    assert r"q0 -> q1: \e" in format_machine(machine)
+
+def test_dfa_rejects_epsilon_transition():
+    code = r"""
+    dfa BadDFA {
+        states: q0, q1
+        alphabet: "a"
+        start: q0
+        accept: q1
+        transitions: {
+            q0 -> q1: \e
+        }
+    }
+    """
+    with pytest.raises(SemanticError, match="DFA cannot contain epsilon"):
+        SemanticAnalyser().visit(get_parse_tree(code))
+
+@pytest.mark.parametrize("bad_alphabet", ['""', '"ab"', '"01"'])
+def test_alphabet_rejects_non_single_character_symbols(bad_alphabet):
+    code = f"""
+    dfa BadAlpha {{
+        states: q0
+        alphabet: {bad_alphabet}
+        start: q0
+    }}
+    """
+    with pytest.raises(SemanticError, match="must be a single character"):
+        SemanticAnalyser().visit(get_parse_tree(code))
+
+def test_regex_preserves_original_whitespace():
+    code = r'regex HasOddOnes = ("0"* "1")+ | \e'
+    analyzer = SemanticAnalyser()
+    analyzer.visit(get_parse_tree(code))
+    assert analyzer.machines["HasOddOnes"].expression == r'("0"* "1")+ | \e'

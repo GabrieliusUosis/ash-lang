@@ -225,3 +225,20 @@ def test_mixed_regex_ids_strings_and_quantifiers():
         "LPAREN", "STRING", "PLUS", "PIPE", "ID", "RPAREN", "QUESTION",
         "STRING", "STAR",
     ]
+
+def test_epsilon_token_in_transitions_and_regex():
+    assert tokenize_pairs(r"q0 -> q1: \e") == [
+        ("ID", "q0"),
+        ("ARROW", "->"),
+        ("ID", "q1"),
+        ("COLON", ":"),
+        ("EPSILON", r"\e"),
+    ]
+    assert tokenize_pairs(r'regex R = "0" | \e') == [
+        ("REGEX", "regex"),
+        ("ID", "R"),
+        ("ASSIGN", "="),
+        ("STRING", '"0"'),
+        ("PIPE", "|"),
+        ("EPSILON", r"\e"),
+    ]
