@@ -1,31 +1,11 @@
 import pytest
-from antlr4 import InputStream, CommonTokenStream
+from antlr4 import CommonTokenStream, InputStream
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
-from src.semantic_analyser import SemanticAnalyser, SemanticError
 from src.formatter import format_machine
 from src.models import EPSILON, Transition
-from antlr4.error.ErrorListener import ErrorListener
-
-class StrictErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        raise SyntaxError(f"Syntax error at line {line}:{column} - {msg}")
-
-def get_parse_tree(source_code: str):
-    """Helper to generate a parse tree from a string snippet."""
-    stream = InputStream(source_code)
-    
-    lexer = AutomataLexer(stream)
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(StrictErrorListener())
-    
-    token_stream = CommonTokenStream(lexer)
-    
-    parser = AutomataParser(token_stream)
-    parser.removeErrorListeners()
-    parser.addErrorListener(StrictErrorListener())
-    
-    return parser.program()
+from src.semantic_analyser import SemanticAnalyser, SemanticError
+from tests.conftest import get_parse_tree
 
 def test_dfa_states_extraction():
     code = """

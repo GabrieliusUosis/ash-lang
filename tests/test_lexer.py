@@ -1,28 +1,5 @@
 import pytest
-from antlr4 import InputStream
-from antlr4.error.ErrorListener import ErrorListener
-from grammar.AutomataLexer import AutomataLexer
-
-class _StrictLexerErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        raise SyntaxError(f"Lexer error at {line}:{column} - {msg}")
-
-def tokenize_strict(text: str):
-    stream = InputStream(text)
-    lexer = AutomataLexer(stream)
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(_StrictLexerErrorListener())
-    return [(lexer.symbolicNames[t.type], t.text) for t in lexer.getAllTokens()]
-
-def tokenize(text: str):
-    stream = InputStream(text)
-    lexer = AutomataLexer(stream)
-    return [lexer.symbolicNames[token.type] for token in lexer.getAllTokens()]
-
-def tokenize_pairs(text: str):
-    stream = InputStream(text)
-    lexer = AutomataLexer(stream)
-    return [(lexer.symbolicNames[t.type], t.text) for t in lexer.getAllTokens()]
+from tests.conftest import tokenize, tokenize_pairs
 
 def test_keywords_and_symbols():
     text = "dfa M1 { start: q0 }"
@@ -216,7 +193,7 @@ def test_unicode_and_whitespace_string_literals():
 ])
 def test_lexer_rejects_invalid_tokens_and_unterminated_strings(invalid_lexeme):
     with pytest.raises(SyntaxError):
-        tokenize_strict(invalid_lexeme)
+        tokenize_pairs(invalid_lexeme, strict=True)
 
 def test_mixed_regex_ids_strings_and_quantifiers():
     sample = 'regex R = ("0"+ | sub_expr)? "1"*'

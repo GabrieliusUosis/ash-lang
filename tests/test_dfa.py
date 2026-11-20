@@ -1,31 +1,8 @@
-import itertools
 import pytest
-from antlr4 import InputStream, CommonTokenStream
-from antlr4.error.ErrorListener import ErrorListener
-from grammar.AutomataLexer import AutomataLexer
-from grammar.AutomataParser import AutomataParser
-from src.semantic_analyser import SemanticAnalyser
+from src.compiler import compile_source
+from src.formatter import format_machine
 from src.runtime.dfa import DFA
-
-class _StrictErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        raise SyntaxError(f"Syntax error at line {line}:{column} - {msg}")
-
-def compile_dfa(code: str, name: str) -> DFA:
-    lexer = AutomataLexer(InputStream(code))
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(_StrictErrorListener())
-    parser = AutomataParser(CommonTokenStream(lexer))
-    parser.removeErrorListeners()
-    parser.addErrorListener(_StrictErrorListener())
-    analyzer = SemanticAnalyser()
-    analyzer.visit(parser.program())
-    return DFA.from_machine_data(analyzer.machines[name])
-
-def all_words(alphabet: str, max_len: int):
-    for length in range(max_len + 1):
-        for chars in itertools.product(alphabet, repeat=length):
-            yield "".join(chars)
+from tests.conftest import all_words, compile_dfa
 
 def make_ends_with_zero_dfa() -> DFA:
     return DFA(
@@ -269,12 +246,7 @@ def test_dfa_from_machine_data_integration():
         }
     }
     """
-    lexer = AutomataLexer(InputStream(code))
-    parser = AutomataParser(CommonTokenStream(lexer))
-    analyzer = SemanticAnalyser()
-    analyzer.visit(parser.program())
-
-    dfa = DFA.from_machine_data(analyzer.machines["EndsWithB"])
+    dfa = compile_dfa(code, "EndsWithB")
     assert dfa.simulate("aab") is True
     assert dfa.simulate("aba") is False
 
@@ -639,13 +611,12 @@ def test_dfa_to_ash_minimal_machine_omits_empty_sections():
     assert recompiled.simulate("") is False
 
 def test_cli_format_machine_code_for_dfa_nfa_and_regex():
-    from main import format_machine_code, parse_code
     code = """
     dfa D1 { states: s0, s1 alphabet: "0" start: s0 accept: s1 transitions: { s0 -> s1: "0" } }
     nfa N1 { states: q0, q1 alphabet: "a" start: q0 accept: q1 transitions: { q0 -> q1: "a" } }
     regex R1 = (a|b)*
     """
-    machines = parse_code(source_code=code)
-    assert "dfa D1 {" in format_machine_code(machines["D1"])
-    assert "nfa N1 {" in format_machine_code(machines["N1"])
-    assert format_machine_code(machines["R1"]) == "regex R1 = (a|b)*"
+    machines = compile_source(code)
+    assert "dfa D1 {" in format_machine(machines["D1"])
+    assert "nfa N1 {" in format_machine(machines["N1"])
+    assert format_machine(machines["R1"]) == "regex R1 = (a|b)*"

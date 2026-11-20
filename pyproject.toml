@@ -18,3 +18,7 @@ ash = "main:main"
 [tool.setuptools]
 py-modules = ["main"]
 packages = ["grammar", "src", "src.runtime"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
