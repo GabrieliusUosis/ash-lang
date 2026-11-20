@@ -12,7 +12,6 @@ dfa EndsWithZero {
     }
 }
 
-
 dfa StartsWithB {
     states: s0, s1, s3
     alphabet: "a", "b"

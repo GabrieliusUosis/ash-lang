@@ -6,11 +6,14 @@ This document covers how to run `.ash` programs from the command line, inspect t
 
 ## 1. Command-Line Interface (CLI) Usage
 
-Install the `ash` CLI command in editable mode (only needed once):
+Install the `ash` CLI command in editable mode and generate the ANTLR files (only needed once):
 
 ```powershell
 cd ash-lang
 pip install -e .
+cd grammar
+antlr4 -Dlanguage=Python3 -visitor AutomataLexer.g4 AutomataParser.g4
+cd ..
 ```
 
 *(Note: Every `ash ...` command below can also be run via `python main.py ...`)*
@@ -22,12 +25,9 @@ ash demo.ash
 ```
 **Output:**
 ```text
-Semantic analysis complete. Valid machines loaded:
+Machines loaded:
  - [DFA] EndsWithZero
- - [DFA] EvenZeros
- - [DFA] ContainsAB
- - [DFA] DivisibleByThree
- - [REGEX] HasOddOnes
+ - [DFA] StartsWithB
 ```
 
 ### 1.2 Execute / Simulate a DFA on Input Strings
@@ -43,13 +43,13 @@ Simulating DFA 'EndsWithZero':
   Input "0": ACCEPT | Trace: s0 --(0)--> s1
 ```
 
-To test the empty string ($\epsilon$), pass `""`:
+To test the empty string ($\varepsilon$), pass `""`:
 ```powershell
-ash demo.ash EvenZeros "" "0" "00"
+ash demo.ash EndsWithZero "" "0"
 ```
 
-### 1.3 View Source Code (`-code`)
-To view a specific machine's `.ash` definition from the terminal:
+### 1.3 View Source Code (`-code` / `--code`)
+To view a specific machine's formatted `.ash` definition from the terminal:
 ```powershell
 ash demo.ash EndsWithZero -code
 ```
@@ -58,10 +58,9 @@ To view the entire `.ash` file with line numbers:
 ash demo.ash -code
 ```
 
-### 1.4 Run the Built-in Default Sample
-Running `ash` with no arguments executes a built-in minimal sample DFA (`M1`):
+### 1.4 Show CLI Help
 ```powershell
-ash
+ash --help
 ```
 
 ### 1.5 Run the Unit Test Suite
@@ -75,32 +74,33 @@ pytest -v
 
 `ash` includes built-in wrappers around ANTLR's TestRig (`grun` / `antlr4-parse`) so you can inspect how any `.ash` file is tokenized and parsed.
 
-### 2.1 Visual Parse Tree GUI (`-gui`)
+### 2.1 Visual Parse Tree GUI (`-gui` / `--gui`)
 Opens an interactive graphical window displaying the complete parse tree diagram of your `.ash` file:
 ```powershell
 ash demo.ash -gui
 ```
 
-### 2.2 LISP-Style Text Parse Tree (`-tree`)
+### 2.2 LISP-Style Text Parse Tree (`-tree` / `--tree`)
 Prints the hierarchical parse tree directly in the terminal:
 ```powershell
 ash demo.ash -tree
 ```
 
-### 2.3 Lexer Token Stream (`-tokens`)
+### 2.3 Lexer Token Stream (`-tokens` / `--tokens`)
 Prints every token emitted by `AutomataLexer`, including token index, character offsets, literal text, token type, and `line:column` coordinates:
 ```powershell
 ash demo.ash -tokens
 ```
 
 ### 2.4 Direct `antlr4-parse` & Regenerating Grammar Files
-If you ever want to call `antlr4-parse` directly without `main.py`:
+If you ever want to call `antlr4-parse` directly:
 ```powershell
 antlr4-parse grammar/AutomataParser.g4 grammar/AutomataLexer.g4 program -gui demo.ash
 ```
-If you modify `grammar/AutomataLexer.g4` or `grammar/AutomataParser.g4`, regenerate the Python lexer/parser/visitor files with:
+If you modify `grammar/AutomataLexer.g4` or `grammar/AutomataParser.g4`, regenerate the Python lexer/parser/visitor files inside `grammar/`:
 ```powershell
-antlr4 -Dlanguage=Python3 -visitor grammar/AutomataLexer.g4 grammar/AutomataParser.g4
+cd grammar
+antlr4 -Dlanguage=Python3 -visitor AutomataLexer.g4 AutomataParser.g4
 ```
 
 ---
@@ -112,7 +112,8 @@ antlr4 -Dlanguage=Python3 -visitor grammar/AutomataLexer.g4 grammar/AutomataPars
 | :--- | :--- | :--- |
 | **Comments** | Single-line or inline comments starting with `//` | `// This is a comment` |
 | **Identifiers (`ID`)** | Starts with a letter or `_`, followed by letters, digits, or `_` | `s0`, `q_even`, `EndsWithZero` |
-| **Strings (`STRING`)** | Double-quoted characters (supports `\` escapes) | `"0"`, `"a"`, `"\""` |
+| **Strings (`STRING`)** | Double-quoted single-character symbols (supports `\` escapes) | `"0"`, `"a"`, `"\""`, `"\\"` |
+| **Epsilon (`EPSILON`)** | Unquoted `\e` representing the empty string $\varepsilon$ | `q0 -> q1: \e`, `"0" \| \e` |
 | **Whitespace** | Spaces, tabs, and newlines are ignored between tokens | — |
 
 ---
@@ -138,7 +139,7 @@ dfa EndsWithZero {
 
 #### Property Breakdown:
 - **`states:`** Comma-separated list of state identifiers (`ID`).
-- **`alphabet:`** Comma-separated list of double-quoted symbols (`STRING`).
+- **`alphabet:`** Comma-separated list of double-quoted single-character symbols (`STRING`).
 - **`start:`** A single state identifier (`ID`) representing the initial state $q_0$.
 - **`accept:`** *(Optional)* Comma-separated list of accepting state identifiers ($F$). If omitted, the machine has $F = \emptyset$.
 - **`transitions:`** *(Optional)* A block `{ ... }` of transition rules, each formatted as:
@@ -151,19 +152,20 @@ dfa EndsWithZero {
 
 ### 3.3 Declaring an NFA (`nfa`)
 
-A Non-deterministic Finite Automaton uses the identical block structure with the `nfa` keyword, but permits multiple outgoing transitions from the same state on the same symbol:
+A Non-deterministic Finite Automaton uses the identical block structure with the `nfa` keyword, permits multiple outgoing transitions from the same state on the same symbol, and supports `\e` ($\varepsilon$) transitions:
 
 ```ash
 nfa EndsWithAA {
-    states: q0, q1, q2
+    states: q0, q1, q2, q3
     alphabet: "a", "b"
     start: q0
-    accept: q2
+    accept: q3
     transitions: {
         q0 -> q0: "a"
         q0 -> q0: "b"
-        q0 -> q1: "a"
+        q0 -> q1: \e
         q1 -> q2: "a"
+        q2 -> q3: "a"
     }
 }
 ```
@@ -176,7 +178,7 @@ Regular expressions are declared with the `regex` keyword, an identifier, `=`, a
 
 ```ash
 regex HasOddOnes = ("0"* "1" "0"* "1" "0"*)* "0"* "1" "0"*
-regex SimpleIdentifier = (a | b)+ "0"?
+regex OptionalBit = ("0" | "1") | \e
 ```
 
 #### Supported Regex Operators (Highest to Lowest Precedence):
@@ -201,14 +203,17 @@ If any of the following rules are violated, compilation halts with a `SemanticEr
    - No duplicate symbols in `alphabet:`.
    - No duplicate state names in `accept:`.
    - At most one `start:` state may be declared.
-4. **State Referential Integrity:**
+4. **Single-Character Alphabet Symbols:** Every symbol declared in `alphabet:` must be a single character (`len == 1`).
+5. **State Referential Integrity:**
    - The `start` state must exist in `states:`.
    - Every state in `accept:` must exist in `states:`.
    - Every transition's `source` and `target` state must exist in `states:`.
-5. **Alphabet Membership:** Every transition's `symbol` must be declared in `alphabet:`.
-6. **DFA Determinism:** A `dfa` cannot have two transitions with the same `(source, symbol)` pair. (An `nfa` allows this).
+6. **Transition Labels & Epsilon Rules:**
+   - Every non-epsilon transition's `symbol` must be declared in `alphabet:`.
+   - `\e` transitions are permitted in `nfa` declarations and rejected in `dfa` declarations.
+7. **DFA Determinism:** A `dfa` cannot have two transitions with the same `(source, symbol)` pair.
 
 ### Runtime Execution Rules (`DFA`)
 1. **Partial DFAs (Implicit Dead State):** You do not have to write transitions for every possible `(state, symbol)` pair. If a simulation encounters a `(state, symbol)` with no defined transition, the DFA immediately rejects (`REJECT`) the input string.
-2. **Empty String ($\epsilon$) Acceptance:** Passing `""` to a DFA returns `ACCEPT` if and only if the `start` state is also in `accept:`.
+2. **Empty String ($\varepsilon$) Acceptance:** Passing `""` to a DFA returns `ACCEPT` if and only if the `start` state is also in `accept:`.
 3. **Alphabet Guard:** Passing an input string containing a character not declared in the DFA's `alphabet:` raises a `ValueError`.

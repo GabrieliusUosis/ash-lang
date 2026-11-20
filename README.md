@@ -1,8 +1,60 @@
 # ash-lang
-This project introduces a novel Domain-Specific Language designed as a declarative workbench for building, testing, and transforming formal models of computation. The system provides a unified programmatic environment to explicitly manipulate Regular Expressions, Non-deterministic Finite Automata (NFAs), and Deterministic Finite Automata (DFAs). By elevating formal language constructs to first-class syntax, the language combines the strict mathematical definitions of automata theory with robust automation, testing, and rendering capabilities.
 
-Current methodologies for manipulating formal languages typically force developers into a compromise between interactivity and programmatic scalability. Visual simulators offer highly intuitive learning experiences but lack the scripting capabilities necessary for automated testing, continuous integration, or large scale version control. Conversely, general purpose programming libraries require verbose, low-level boilerplate code that heavily obscures the underlying mathematical clarity of the models. This project successfully bridges that gap. It offers a custom syntax allowing users to declare complex state machines natively, eliminating the need to manually define nested dictionaries and data structures.
+**ash-lang** is a declarative Domain-Specific Language (DSL) and workbench for defining, validating, simulating, and transforming formal models of computation (**DFAs**, **NFAs**, **Regular Expressions**, and **Regular Grammars**).
 
-The underlying system architecture relies on a robust frontend featuring a custom lexer and parser built to process the specialized syntax. The language pipeline includes a dedicated semantic analysis layer responsible for enforcing correct states, alphabets, and variable scopes well before execution begins. At its core, the Python-based evaluation runtime efficiently executes standard formal language algorithms. These encompass Thompson's Construction for regular expression conversion, Subset Construction for determinization, and Hopcroft's Algorithm for state minimization. Furthermore, the environment features a dynamic export module that automatically generates DOT format files, allowing for instant visual rendering of complex state machines.
+---
 
-Ultimately, this declarative workbench fundamentally streamlines the development, transformation, and validation of computational models. The resulting language significantly reduces syntactical verbosity while maintaining high computational efficiency. By actively preventing common formal modeling errors during the semantic analysis stage, the project delivers a highly usable, accurate, and rigorous software engineering tool tailored specifically for formal language manipulation.
+## Current Status
+
+| Feature | Status | Notes |
+| :--- | :---: | :--- |
+| **ANTLR4 Lexer & Parser** | Implemented | Supports `dfa`, `nfa`, `regex`, and unquoted `\e` epsilon tokens (`grammar/`). |
+| **Semantic Analyser** | Implemented | Enforces unique names, declared states, single-character alphabets, `\e` rules, and DFA determinism (`src/semantic_analyser.py`). |
+| **DFA Runtime Engine** | Implemented | $O(1)$ transition table, `simulate()`, `trace()`, and `.to_ash()` round-trip serialization (`src/runtime/dfa.py`). |
+| **CLI & ANTLR Inspection** | Implemented | `ash` CLI command with `-code`, `-tree`, `-tokens`, and `-gui` flags (`src/cli.py`). |
+| **NFA Runtime Engine** | In Progress | `NFA` model stub created (`src/runtime/nfa.py`); $\varepsilon$-closure and simulation next. |
+| **Regex AST & Algorithms** | Planned | Thompson's Construction, Subset Construction, Brzozowski Derivatives, Hopcroft Minimization, Regular Grammars, Equivalence Checking, and Graphviz/LaTeX export. |
+
+---
+
+## Fresh Clone Setup
+
+Generated ANTLR Python parser files (`grammar/Automata*.py`) are excluded by `.gitignore` and must be generated once after cloning:
+
+```powershell
+# 1. Install runtime dependencies and register the `ash` CLI command
+cd ash-lang
+pip install -r requirements.txt
+pip install -e .
+
+# 2. Generate the ANTLR4 lexer, parser, and visitor inside grammar/
+cd grammar
+antlr4 -Dlanguage=Python3 -visitor AutomataLexer.g4 AutomataParser.g4
+cd ..
+```
+
+---
+
+## Quick Start
+
+```powershell
+# Validate and list machines in a file
+ash demo.ash
+
+# Simulate a DFA on input words with full transition traces
+ash demo.ash EndsWithZero "1010" "1011" "0"
+
+# Print formatted source for one machine or the whole file
+ash demo.ash EndsWithZero -code
+ash demo.ash -code
+
+# Inspect tokens or parse tree via ANTLR TestRig
+ash demo.ash -tokens
+ash demo.ash -tree
+ash demo.ash -gui
+
+# Run the unit test suite
+pytest -v
+```
+
+For the full grammar and CLI specification, see [SYNTAX.md](SYNTAX.md).
