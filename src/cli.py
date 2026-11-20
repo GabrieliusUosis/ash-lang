@@ -5,6 +5,7 @@ import sys
 from src.compiler import compile_file
 from src.formatter import format_machine
 from src.runtime.dfa import DFA
+from src.runtime.nfa import NFA
 from src.semantic_analyser import SemanticError
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,13 +30,19 @@ def print_file_code(file_path: str):
         for idx, line in enumerate(f, start=1):
             print(f"{idx:3d} | {line.rstrip()}")
 
-def run_simulation(machine: DFA, words: list[str]):
-    print(f"\nSimulating DFA '{machine.name}':")
+def _format_state(node: str | set[str]) -> str:
+    if isinstance(node, set):
+        return "{" + ", ".join(sorted(node)) + "}"
+    return node
+
+def run_simulation(machine: DFA | NFA, words: list[str]):
+    print(f"\nSimulating {machine.machine_type} '{machine.name}':")
     for word in words:
         try:
             accepted, path = machine.trace(word)
             status = "ACCEPT" if accepted else "REJECT"
-            steps = " -> ".join([f"{src} --({sym})--> {tgt}" for src, sym, tgt in path]) or f"{machine.start} (no transitions)"
+            initial = machine.epsilon_closure({machine.start}) if isinstance(machine, NFA) else machine.start
+            steps = " -> ".join([f"{_format_state(src)} --({sym})--> {_format_state(tgt)}" for src, sym, tgt in path]) or f"{_format_state(initial)} (no transitions)"
             print(f'  Input "{word}": {status} | Trace: {steps}')
         except ValueError as e:
             print(f'  Input "{word}": ERROR ({e})')
@@ -90,8 +97,8 @@ def main(argv: list[str] | None = None):
                 print(f"Error: Machine '{args.machine}' not found.", file=sys.stderr)
                 sys.exit(1)
             target = machines[args.machine]
-            if not isinstance(target, DFA):
-                print(f"Error: Machine '{args.machine}' is not a DFA.", file=sys.stderr)
+            if not isinstance(target, (DFA, NFA)):
+                print(f"Error: Machine '{args.machine}' is not a runnable DFA or NFA.", file=sys.stderr)
                 sys.exit(1)
             if args.words:
                 run_simulation(target, args.words)
