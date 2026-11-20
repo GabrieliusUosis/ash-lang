@@ -36,5 +36,18 @@ class NFA:
 
     from_machine_data = from_spec
 
+    def epsilon_closure(self, states: set[str]) -> set[str]:
+        closure = set(states)
+        stack = list(states)
+
+        while stack:
+            state = stack.pop()
+            for next_state in self._transition_table.get((state, EPSILON), ()):
+                if next_state not in closure:
+                    closure.add(next_state)
+                    stack.append(next_state)
+
+        return closure
+
     def to_ash(self) -> str:
         return format_machine(self)
