@@ -25,7 +25,7 @@ startDecl : START COLON ID ;
 acceptDecl : ACCEPT COLON idList ;
 
 transitionsBlock : TRANSITIONS COLON LBRACE transition* RBRACE ;
-transition : ID ARROW ID COLON STRING ;
+transition : ID ARROW ID COLON (STRING | EPSILON) ;
 
 //Helper rules for the COMMA token
 idList : ID (COMMA ID)* ;
@@ -40,4 +40,5 @@ regexExpr : regexExpr (STAR | PLUS | QUESTION)
           | regexExpr PIPE regexExpr            
           | LPAREN regexExpr RPAREN
           | STRING                             
-          | ID ;                                
+          | ID
+          | EPSILON ;
