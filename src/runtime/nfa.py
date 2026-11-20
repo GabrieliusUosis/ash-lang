@@ -49,5 +49,10 @@ class NFA:
 
         return closure
 
+    def _validate_word(self, word: str):
+        for symbol in word:
+            if symbol not in self._alphabet_set:
+                raise ValueError(f"Symbol '{symbol}' is not in the alphabet of NFA '{self.name}'.")
+
     def to_ash(self) -> str:
         return format_machine(self)
