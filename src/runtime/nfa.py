@@ -1,8 +1,5 @@
+from src.formatter import format_machine
 from src.models import MachineSpec, Transition
-
-def _escape_symbol(symbol: str) -> str:
-    escapes = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
-    return "".join(escapes.get(ch, ch) for ch in symbol)
 
 class NFA:
     def __init__(self, name: str, states: list[str], alphabet: list[str], start: str, accept: list[str], transitions: list[Transition | dict]):
@@ -30,3 +27,6 @@ class NFA:
         )
 
     from_machine_data = from_spec
+
+    def to_ash(self) -> str:
+        return format_machine(self)

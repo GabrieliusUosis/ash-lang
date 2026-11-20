@@ -6,7 +6,8 @@ from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.SemanticAnalyser import SemanticAnalyser, SemanticError
-from src.runtime.dfa import DFA, _escape_symbol
+from src.formatter import format_machine
+from src.runtime.dfa import DFA
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,27 +39,7 @@ def print_file_code(file_path: str):
         for idx, line in enumerate(f, start=1):
             print(f"{idx:3d} | {line.rstrip()}")
 
-def format_machine_code(machine) -> str:
-    if hasattr(machine, "to_ash"):
-        return machine.to_ash()
-    if machine.machine_type == "REGEX":
-        return f"regex {machine.name} = {machine.expression}"
-    keyword = machine.machine_type.lower()
-    lines = [f"{keyword} {machine.name} {{"]
-    lines.append(f"    states: {', '.join(machine.states)}")
-    if machine.alphabet:
-        formatted_alpha = ", ".join(f'"{_escape_symbol(s)}"' for s in machine.alphabet)
-        lines.append(f"    alphabet: {formatted_alpha}")
-    lines.append(f"    start: {machine.start}")
-    if machine.accept:
-        lines.append(f"    accept: {', '.join(machine.accept)}")
-    if machine.transitions:
-        lines.append("    transitions: {")
-        for t in machine.transitions:
-            lines.append(f'        {t.source} -> {t.target}: "{_escape_symbol(t.symbol)}"')
-        lines.append("    }")
-    lines.append("}")
-    return "\n".join(lines)
+format_machine_code = format_machine
 
 def parse_code(source_code: str = None, file_path: str = None) -> dict:
     stream = FileStream(ensure_file_exists(file_path), encoding='utf-8') if file_path else InputStream(source_code)

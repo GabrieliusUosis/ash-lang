@@ -1,19 +1,6 @@
 from grammar.AutomataParserVisitor import AutomataParserVisitor
+from src.formatter import unescape_string
 from src.models import MachineSpec, RegexSpec, Transition
-
-def _unescape_string(token_text: str) -> str:
-    inner = token_text[1:-1]
-    escapes = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"'}
-    out = []
-    i = 0
-    while i < len(inner):
-        if inner[i] == "\\" and i + 1 < len(inner):
-            out.append(escapes.get(inner[i + 1], inner[i + 1]))
-            i += 2
-        else:
-            out.append(inner[i])
-            i += 1
-    return "".join(out)
 
 class SemanticError(Exception):
     """Raised when the parsed code is syntactically valid but logically flawed."""
@@ -33,7 +20,7 @@ class SemanticAnalyser(AutomataParserVisitor):
         return states
 
     def visitAlphabetDecl(self, ctx):
-        alphabet = [_unescape_string(node.getText()) for node in ctx.stringList().STRING()]
+        alphabet = [unescape_string(node.getText()) for node in ctx.stringList().STRING()]
         for symbol in alphabet:
             if symbol in self.current_machine.alphabet:
                 raise SemanticError(f"Duplicate alphabet symbol declared: '{symbol}'")
@@ -58,7 +45,7 @@ class SemanticAnalyser(AutomataParserVisitor):
     def visitTransition(self, ctx):
         source = ctx.ID(0).getText()
         target = ctx.ID(1).getText()
-        symbol = _unescape_string(ctx.STRING().getText())
+        symbol = unescape_string(ctx.STRING().getText())
 
         transition_data = Transition(source=source, symbol=symbol, target=target)
         self.current_machine.transitions.append(transition_data)
