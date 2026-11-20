@@ -180,3 +180,76 @@ def test_nfa_to_ash_round_trip_with_epsilon():
     recompiled = compile_nfa(emitted, "EpsRoundTrip")
     for word in all_words("ab", 5):
         assert recompiled.simulate(word) is original.simulate(word)
+
+def test_sipser_nfa_third_from_last_is_one_exhaustive():
+    code = """
+    nfa ThirdFromLastOne {
+        states: q1, q2, q3, q4
+        alphabet: "0", "1"
+        start: q1
+        accept: q4
+        transitions: {
+            q1 -> q1: "0"
+            q1 -> q1: "1"
+            q1 -> q2: "1"
+            q2 -> q3: "0"
+            q2 -> q3: "1"
+            q3 -> q4: "0"
+            q3 -> q4: "1"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "ThirdFromLastOne")
+    for word in all_words("01", 8):
+        expected = len(word) >= 3 and word[-3] == "1"
+        assert nfa.simulate(word) is expected, f"Mismatch on '{word}'"
+
+def test_sipser_nfa_epsilon_union_even_zeros_or_even_ones_exhaustive():
+    code = r"""
+    nfa EvenZerosOrEvenOnes {
+        states: q_start, z_even, z_odd, o_even, o_odd
+        alphabet: "0", "1"
+        start: q_start
+        accept: z_even, o_even
+        transitions: {
+            q_start -> z_even: \e
+            q_start -> o_even: \e
+            z_even -> z_odd: "0"
+            z_even -> z_even: "1"
+            z_odd -> z_even: "0"
+            z_odd -> z_odd: "1"
+            o_even -> o_odd: "1"
+            o_even -> o_even: "0"
+            o_odd -> o_even: "1"
+            o_odd -> o_odd: "0"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "EvenZerosOrEvenOnes")
+    for word in all_words("01", 8):
+        expected = (word.count("0") % 2 == 0) or (word.count("1") % 2 == 0)
+        assert nfa.simulate(word) is expected, f"Mismatch on '{word}'"
+
+def test_sipser_nfa_contains_101_or_11_exhaustive():
+    code = """
+    nfa Contains101Or11 {
+        states: q1, q2, q3, q4
+        alphabet: "0", "1"
+        start: q1
+        accept: q4
+        transitions: {
+            q1 -> q1: "0"
+            q1 -> q1: "1"
+            q1 -> q2: "1"
+            q2 -> q3: "0"
+            q2 -> q4: "1"
+            q3 -> q4: "1"
+            q4 -> q4: "0"
+            q4 -> q4: "1"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "Contains101Or11")
+    for word in all_words("01", 8):
+        expected = ("101" in word) or ("11" in word)
+        assert nfa.simulate(word) is expected, f"Mismatch on '{word}'"
