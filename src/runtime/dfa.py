@@ -1,3 +1,5 @@
+from src.models import MachineSpec, Transition
+
 def _escape_symbol(symbol: str) -> str:
     escapes = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
     return "".join(escapes.get(ch, ch) for ch in symbol)
@@ -5,7 +7,7 @@ def _escape_symbol(symbol: str) -> str:
 class DFA:
     """Formal representation of a Deterministic Finite Automaton: (Q, Σ, δ, q0, F)."""
 
-    def __init__(self, name: str, states: list[str], alphabet: list[str], start: str, accept: list[str], transitions: list[dict]):
+    def __init__(self, name: str, states: list[str], alphabet: list[str], start: str, accept: list[str], transitions: list[Transition | dict]):
         self.name = name
         self.machine_type = "DFA"
         self.states = list(states)
@@ -14,24 +16,29 @@ class DFA:
         self.start = start
         self._accept_order = list(accept)
         self.accept = set(accept)
-        self.transitions = list(transitions)
+        self.transitions = [
+            t if isinstance(t, Transition) else Transition(t["source"], t["symbol"], t["target"])
+            for t in transitions
+        ]
 
         # δ(q, σ) -> q' mapped as {(source, symbol): target} for O(1) lookup
         self._transition_table = {
-            (t["source"], t["symbol"]): t["target"]
+            (t.source, t.symbol): t.target
             for t in self.transitions
         }
 
     @classmethod
-    def from_machine_data(cls, machine_data):
+    def from_spec(cls, spec: MachineSpec):
         return cls(
-            name=machine_data.name,
-            states=machine_data.states,
-            alphabet=machine_data.alphabet,
-            start=machine_data.start,
-            accept=machine_data.accept,
-            transitions=machine_data.transitions,
+            name=spec.name,
+            states=spec.states,
+            alphabet=spec.alphabet,
+            start=spec.start,
+            accept=spec.accept,
+            transitions=spec.transitions,
         )
+
+    from_machine_data = from_spec
 
     def step(self, state: str, symbol: str) -> str | None:
         return self._transition_table.get((state, symbol))
@@ -79,7 +86,7 @@ class DFA:
         if self.transitions:
             lines.append("    transitions: {")
             for t in self.transitions:
-                lines.append(f'        {t["source"]} -> {t["target"]}: "{_escape_symbol(t["symbol"])}"')
+                lines.append(f'        {t.source} -> {t.target}: "{_escape_symbol(t.symbol)}"')
             lines.append("    }")
         lines.append("}")
         return "\n".join(lines)
