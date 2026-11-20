@@ -26,3 +26,17 @@ dfa StartsWithB {
         s3 -> s3: "b"
     }
 }
+
+nfa EndsWith01 {
+    states: q0, q1, q2
+    alphabet: "0", "1"
+    start: q0
+    accept: q2
+    transitions: {
+        q0 -> q0: "0"
+        q0 -> q0: "1"
+        q0 -> q1: "0"
+        q1 -> q2: "1"
+    }
+}
+
