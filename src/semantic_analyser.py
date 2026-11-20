@@ -1,6 +1,6 @@
 from grammar.AutomataParserVisitor import AutomataParserVisitor
 from src.formatter import unescape_string
-from src.models import MachineSpec, RegexSpec, Transition
+from src.models import EPSILON, MachineSpec, RegexSpec, Transition
 
 class SemanticError(Exception):
     """Raised when the parsed code is syntactically valid but logically flawed."""
@@ -22,6 +22,8 @@ class SemanticAnalyser(AutomataParserVisitor):
     def visitAlphabetDecl(self, ctx):
         alphabet = [unescape_string(node.getText()) for node in ctx.stringList().STRING()]
         for symbol in alphabet:
+            if len(symbol) != 1:
+                raise SemanticError(f"Alphabet symbol '{symbol}' must be a single character.")
             if symbol in self.current_machine.alphabet:
                 raise SemanticError(f"Duplicate alphabet symbol declared: '{symbol}'")
             self.current_machine.alphabet.append(symbol)
@@ -45,19 +47,19 @@ class SemanticAnalyser(AutomataParserVisitor):
     def visitTransition(self, ctx):
         source = ctx.ID(0).getText()
         target = ctx.ID(1).getText()
-        symbol = unescape_string(ctx.STRING().getText())
+        symbol = EPSILON if ctx.EPSILON() is not None else unescape_string(ctx.STRING().getText())
 
         transition_data = Transition(source=source, symbol=symbol, target=target)
         self.current_machine.transitions.append(transition_data)
         return transition_data
 
-    def visitDfaDeclaration(self, ctx):
+    def _visit_machine_declaration(self, ctx, machine_type: str):
         machine_name = ctx.ID().getText()
 
         if machine_name in self.machines:
             raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
 
-        self.current_machine = MachineSpec(machine_name, "DFA")
+        self.current_machine = MachineSpec(machine_name, machine_type)
         try:
             self.visit(ctx.machineBody())
             self._validate_current_machine()
@@ -65,6 +67,12 @@ class SemanticAnalyser(AutomataParserVisitor):
             return self.machines[machine_name]
         finally:
             self.current_machine = None
+
+    def visitDfaDeclaration(self, ctx):
+        return self._visit_machine_declaration(ctx, "DFA")
+
+    def visitNfaDeclaration(self, ctx):
+        return self._visit_machine_declaration(ctx, "NFA")
 
     def _validate_current_machine(self):
         machine = self.current_machine
@@ -86,7 +94,10 @@ class SemanticAnalyser(AutomataParserVisitor):
                 raise SemanticError(f"Transition source '{t.source}' is not declared in states list.")
             if t.target not in machine.states:
                 raise SemanticError(f"Transition target '{t.target}' is not declared in states list.")
-            if t.symbol not in machine.alphabet:
+            if t.symbol == EPSILON:
+                if machine.machine_type == "DFA":
+                    raise SemanticError(r"DFA cannot contain epsilon ('\e') transitions.")
+            elif t.symbol not in machine.alphabet:
                 raise SemanticError(f"Transition symbol '{t.symbol}' is not in the declared alphabet.")
 
             if machine.machine_type == "DFA":
@@ -95,27 +106,13 @@ class SemanticAnalyser(AutomataParserVisitor):
                     raise SemanticError(f"DFA determinism violation: State '{t.source}' has multiple transitions for symbol '{t.symbol}'.")
                 seen_transitions.add(trans_key)
 
-    def visitNfaDeclaration(self, ctx):
-        machine_name = ctx.ID().getText()
-
-        if machine_name in self.machines:
-            raise SemanticError(f"Duplicate machine declaration: '{machine_name}' already exists.")
-
-        self.current_machine = MachineSpec(machine_name, "NFA")
-        try:
-            self.visit(ctx.machineBody())
-            self._validate_current_machine()
-            self.machines[machine_name] = self.current_machine
-            return self.machines[machine_name]
-        finally:
-            self.current_machine = None
-
     def visitRegexDeclaration(self, ctx):
         regex_name = ctx.ID().getText()
 
         if regex_name in self.machines:
             raise SemanticError(f"Duplicate declaration: '{regex_name}' already exists.")
 
-        regex_expr = ctx.regexExpr().getText()
+        expr_ctx = ctx.regexExpr()
+        regex_expr = expr_ctx.start.getInputStream().getText(expr_ctx.start.start, expr_ctx.stop.stop)
         self.machines[regex_name] = RegexSpec(name=regex_name, expression=regex_expr)
         return self.machines[regex_name]
