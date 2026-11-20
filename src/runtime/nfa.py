@@ -60,5 +60,16 @@ class NFA:
             next_states.update(self._transition_table.get((state, symbol), ()))
         return self.epsilon_closure(next_states)
 
+    def simulate(self, word: str) -> bool:
+        self._validate_word(word)
+        current_states = self.epsilon_closure({self.start})
+
+        for symbol in word:
+            current_states = self.step(current_states, symbol)
+            if not current_states:
+                return False
+
+        return bool(current_states & self.accept)
+
     def to_ash(self) -> str:
         return format_machine(self)
