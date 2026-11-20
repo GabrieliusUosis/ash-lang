@@ -54,5 +54,11 @@ class NFA:
             if symbol not in self._alphabet_set:
                 raise ValueError(f"Symbol '{symbol}' is not in the alphabet of NFA '{self.name}'.")
 
+    def step(self, states: set[str], symbol: str) -> set[str]:
+        next_states: set[str] = set()
+        for state in states:
+            next_states.update(self._transition_table.get((state, symbol), ()))
+        return self.epsilon_closure(next_states)
+
     def to_ash(self) -> str:
         return format_machine(self)
