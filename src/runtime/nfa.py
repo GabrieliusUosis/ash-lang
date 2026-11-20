@@ -71,5 +71,20 @@ class NFA:
 
         return bool(current_states & self.accept)
 
+    def trace(self, word: str) -> tuple[bool, list[tuple[set[str], str, set[str]]]]:
+        self._validate_word(word)
+        current_states = self.epsilon_closure({self.start})
+        path = []
+
+        for symbol in word:
+            next_states = self.step(current_states, symbol)
+            if not next_states:
+                return False, path
+
+            path.append((current_states, symbol, next_states))
+            current_states = next_states
+
+        return bool(current_states & self.accept), path
+
     def to_ash(self) -> str:
         return format_machine(self)
