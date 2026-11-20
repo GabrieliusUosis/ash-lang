@@ -4,6 +4,7 @@ from antlr4.error.ErrorListener import ErrorListener
 from grammar.AutomataLexer import AutomataLexer
 from grammar.AutomataParser import AutomataParser
 from src.runtime.dfa import DFA
+from src.runtime.nfa import NFA
 from src.semantic_analyser import SemanticAnalyser
 
 class StrictErrorListener(ErrorListener):
@@ -36,6 +37,8 @@ def compile_source(source_code: str) -> dict:
     for name, spec in analyzer.machines.items():
         if spec.machine_type == "DFA":
             runtime_machines[name] = DFA.from_spec(spec)
+        elif spec.machine_type == "NFA":
+            runtime_machines[name] = NFA.from_spec(spec)
         else:
             runtime_machines[name] = spec
     return runtime_machines
