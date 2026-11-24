@@ -364,3 +364,100 @@ def test_nfa_escaped_special_chars_mixed_with_epsilon():
     recompiled = compile_nfa(nfa.to_ash(), "EscapedNFA")
     assert recompiled.simulate('" \\') is True
     assert recompiled.simulate('"') is False
+
+def test_sipser_unary_length_divisible_by_2_or_3():
+    code = r"""
+    nfa UnaryMod2Or3 {
+        states: q0, m2_0, m2_1, m3_0, m3_1, m3_2
+        alphabet: "0"
+        start: q0
+        accept: m2_0, m3_0
+        transitions: {
+            q0 -> m2_0: \e
+            q0 -> m3_0: \e
+            m2_0 -> m2_1: "0"
+            m2_1 -> m2_0: "0"
+            m3_0 -> m3_1: "0"
+            m3_1 -> m3_2: "0"
+            m3_2 -> m3_0: "0"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "UnaryMod2Or3")
+    for k in range(31):
+        word = "0" * k
+        assert nfa.simulate(word) is ((k % 2 == 0) or (k % 3 == 0)), f"Mismatch for length {k}"
+
+def test_sipser_three_symbol_missing_letter_nfa_exhaustive():
+    code = r"""
+    nfa MissingAtLeastOneSymbol {
+        states: q0, no_a, no_b, no_c
+        alphabet: "a", "b", "c"
+        start: q0
+        accept: no_a, no_b, no_c
+        transitions: {
+            q0 -> no_a: \e
+            q0 -> no_b: \e
+            q0 -> no_c: \e
+            no_a -> no_a: "b"
+            no_a -> no_a: "c"
+            no_b -> no_b: "a"
+            no_b -> no_b: "c"
+            no_c -> no_c: "a"
+            no_c -> no_c: "b"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "MissingAtLeastOneSymbol")
+    for word in all_words("abc", 5):
+        assert nfa.simulate(word) is (len(set(word)) < 3), f"Mismatch on '{word}'"
+
+def test_thompson_style_kleene_star_epsilon_cycles_exhaustive():
+    # Thompson-style NFA for (a | ba)*
+    code = r"""
+    nfa ThompsonStar {
+        states: s_start, u_in, a1, a2, b1, b2, b3, u_out, s_acc
+        alphabet: "a", "b"
+        start: s_start
+        accept: s_acc
+        transitions: {
+            s_start -> u_in: \e
+            s_start -> s_acc: \e
+            u_in -> a1: \e
+            u_in -> b1: \e
+            a1 -> a2: "a"
+            b1 -> b2: "b"
+            b2 -> b3: "a"
+            a2 -> u_out: \e
+            b3 -> u_out: \e
+            u_out -> u_in: \e
+            u_out -> s_acc: \e
+        }
+    }
+    """
+    nfa = compile_nfa(code, "ThompsonStar")
+    for word in all_words("ab", 8):
+        # Every 'b' in (a | ba)* must be immediately followed by an 'a'
+        expected = ("bb" not in word) and (not word.endswith("b"))
+        assert nfa.simulate(word) is expected, f"Mismatch on '{word}'"
+
+def test_nfa_avoids_catastrophic_backtracking_stress():
+    code = r"""
+    nfa ReDoSResistant {
+        states: q0, q1, q2, q3
+        alphabet: "a", "b"
+        start: q0
+        accept: q3
+        transitions: {
+            q0 -> q1: \e
+            q0 -> q2: \e
+            q1 -> q0: "a"
+            q2 -> q0: "a"
+            q0 -> q0: "a"
+            q0 -> q3: "b"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "ReDoSResistant")
+    assert nfa.simulate("a" * 500 + "b") is True
+    assert nfa.simulate("a" * 500) is False
