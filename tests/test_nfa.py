@@ -253,3 +253,114 @@ def test_sipser_nfa_contains_101_or_11_exhaustive():
     for word in all_words("01", 8):
         expected = ("101" in word) or ("11" in word)
         assert nfa.simulate(word) is expected, f"Mismatch on '{word}'"
+
+def test_nfa_empty_accept_set_rejects_everything():
+    code = r"""
+    nfa EmptyLang {
+        states: q0, q1
+        alphabet: "0", "1"
+        start: q0
+        transitions: {
+            q0 -> q1: \e
+            q0 -> q0: "0"
+            q1 -> q0: "1"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "EmptyLang")
+    for word in ["", "0", "1", "01", "10", "0101"]:
+        assert nfa.simulate(word) is False
+
+def test_nfa_unreachable_accept_state():
+    code = r"""
+    nfa Unreachable {
+        states: q0, q1, q_isolated
+        alphabet: "a"
+        start: q0
+        accept: q_isolated
+        transitions: {
+            q0 -> q1: \e
+            q1 -> q0: "a"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "Unreachable")
+    assert nfa.simulate("") is False
+    assert nfa.simulate("a") is False
+    assert nfa.simulate("aaa") is False
+
+def test_nfa_epsilon_only_machine_and_empty_word_trace():
+    code = r"""
+    nfa EpsOnly {
+        states: q0, q1
+        start: q0
+        accept: q1
+        transitions: {
+            q0 -> q1: \e
+        }
+    }
+    """
+    nfa = compile_nfa(code, "EpsOnly")
+    accepted, path = nfa.trace("")
+    assert accepted is True
+    assert path == []
+    with pytest.raises(ValueError, match="Symbol 'a' is not in the alphabet"):
+        nfa.simulate("a")
+
+def test_nfa_dict_transitions_and_duplicate_deduplication():
+    nfa = NFA(
+        name="DictInit",
+        states=["q0", "q1"],
+        alphabet=["a"],
+        start="q0",
+        accept=["q1"],
+        transitions=[
+            {"source": "q0", "symbol": "a", "target": "q1"},
+            {"source": "q0", "symbol": "a", "target": "q1"},
+            {"source": "q0", "symbol": EPSILON, "target": "q0"},
+        ],
+    )
+    assert nfa.step({"q0"}, "a") == {"q1"}
+    assert nfa.simulate("a") is True
+    assert nfa.simulate("") is False
+
+def test_nfa_immutability_and_state_isolation_between_runs():
+    nfa = make_ends_with_01_nfa()
+    seed = {"q0"}
+    closure = nfa.epsilon_closure(seed)
+    closure.add("mutated")
+    assert seed == {"q0"}
+
+    accepted, path = nfa.trace("01")
+    assert accepted is True
+    path[0][2].add("mutated")
+
+    assert nfa.simulate("01") is True
+    assert nfa.simulate("10") is False
+    with pytest.raises(ValueError):
+        nfa.simulate("2")
+    assert nfa.start == "q0"
+    assert nfa.simulate("1001") is True
+
+def test_nfa_escaped_special_chars_mixed_with_epsilon():
+    code = r"""
+    nfa EscapedNFA {
+        states: q0, q1, q2
+        alphabet: "\"", "\\", " "
+        start: q0
+        accept: q2
+        transitions: {
+            q0 -> q1: \e
+            q0 -> q1: "\""
+            q1 -> q1: " "
+            q1 -> q2: "\\"
+        }
+    }
+    """
+    nfa = compile_nfa(code, "EscapedNFA")
+    assert nfa.simulate("\\") is True
+    assert nfa.simulate('"  \\') is True
+    assert nfa.simulate('" ') is False
+    recompiled = compile_nfa(nfa.to_ash(), "EscapedNFA")
+    assert recompiled.simulate('" \\') is True
+    assert recompiled.simulate('"') is False
